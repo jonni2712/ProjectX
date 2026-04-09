@@ -16,6 +16,13 @@ export function safePath(userPath: string): string {
     throw new PathTraversalError(userPath);
   }
 
+  // Protect Syncthing markers and system files from any operation
+  const protectedNames = ['.stfolder', '.stignore', '.stversions', '.git'];
+  const firstSegment = userPath.replace(/^[/\\]+/, '').split(/[/\\]/)[0];
+  if (protectedNames.includes(firstSegment)) {
+    throw new PathTraversalError(`Protected path: ${firstSegment}`);
+  }
+
   // Strip leading slashes so resolve treats it as relative to workspace
   const stripped = userPath.replace(/^[/\\]+/, '');
   const normalized = normalize(stripped).replace(/^(\.\.(\/|\\|$))+/, '');

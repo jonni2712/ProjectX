@@ -7,6 +7,7 @@ import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import unzipper from 'unzipper';
 import { safePath, relativePath } from '../utils/path-guard.js';
+import { config } from '../config.js';
 import type { FileEntry } from '../utils/types.js';
 
 export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
@@ -14,8 +15,10 @@ export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
   const entries = await readdir(absPath, { withFileTypes: true });
 
   const results: FileEntry[] = [];
+  const hiddenSystemFiles = new Set(['.stfolder', '.stignore', '.stversions', '.git', '.DS_Store', 'Thumbs.db']);
   for (const entry of entries) {
-    // Skip hidden files starting with .
+    // Skip Syncthing markers, .git, and system files
+    if (hiddenSystemFiles.has(entry.name)) continue;
     const fullPath = join(absPath, entry.name);
     try {
       const stats = await stat(fullPath);
@@ -86,6 +89,10 @@ export async function createDirectory(dirPath: string): Promise<void> {
 
 export async function deleteEntry(entryPath: string): Promise<void> {
   const absPath = safePath(entryPath);
+  // Prevent deleting the workspace root itself
+  if (absPath === config.workspaceRoot) {
+    throw new Error('Cannot delete workspace root');
+  }
   await rm(absPath, { recursive: true, force: true });
 }
 
