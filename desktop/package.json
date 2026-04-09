@@ -51,7 +51,11 @@
     "mac": {
       "target": "dmg",
       "icon": "public/icon.png",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
     "publish": [
       {

@@ -122,7 +122,7 @@ async function handleMessage(
         const cwd = data?.cwd || '/';
         const cols = data?.cols || 80;
         const rows = data?.rows || 24;
-        const terminal = createTerminal(cwd, cols, rows);
+        const terminal = createTerminal(cwd, cols, rows, client.userId);
         const listener = (output: string) => {
           send({ channel: `terminal:${terminal.session.id}`, type: 'output', data: output });
         };
@@ -138,6 +138,11 @@ async function handleMessage(
       case 'destroy': {
         const id = data?.id;
         if (id) {
+          const terminal = getTerminal(id);
+          if (terminal && terminal.userId !== client.userId) {
+            send({ channel: 'terminal', type: 'error', data: 'Access denied: terminal belongs to another user' });
+            break;
+          }
           const listener = client.terminalListeners.get(id);
           if (listener) {
             removeTerminalListener(id, listener);
@@ -153,6 +158,10 @@ async function handleMessage(
         const id = data?.id;
         const terminal = getTerminal(id);
         if (terminal) {
+          if (terminal.userId !== client.userId) {
+            send({ channel: 'terminal', type: 'error', data: 'Access denied: terminal belongs to another user' });
+            break;
+          }
           const listener = (output: string) => {
             send({ channel: `terminal:${id}`, type: 'output', data: output });
           };
@@ -200,6 +209,17 @@ async function handleTerminal(
   meta: any,
   send: (msg: WsMessage) => void,
 ) {
+  // Verify the terminal belongs to this user
+  const terminal = getTerminal(termId);
+  if (!terminal) {
+    send({ channel: `terminal:${termId}`, type: 'error', data: 'Terminal not found' });
+    return;
+  }
+  if (terminal.userId !== client.userId) {
+    send({ channel: `terminal:${termId}`, type: 'error', data: 'Access denied: terminal belongs to another user' });
+    return;
+  }
+
   switch (type) {
     case 'input':
       writeToTerminal(termId, data);

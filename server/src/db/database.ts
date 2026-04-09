@@ -121,7 +121,8 @@ export function createUser(id: string, username: string, passwordHash: string, r
 }
 
 export function updateUser(id: string, fields: Partial<{ username: string; password_hash: string; role: string; last_login: string; active: number }>): void {
-  const keys = Object.keys(fields) as (keyof typeof fields)[];
+  const ALLOWED_COLUMNS = new Set(['username', 'password_hash', 'role', 'last_login', 'active']);
+  const keys = (Object.keys(fields) as (keyof typeof fields)[]).filter(k => ALLOWED_COLUMNS.has(k));
   if (keys.length === 0) return;
   const setClauses = keys.map(k => `${k} = ?`).join(', ');
   const values = keys.map(k => fields[k]);

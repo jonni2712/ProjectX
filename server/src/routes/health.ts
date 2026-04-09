@@ -1,9 +1,24 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import { getTunnelStatus, startTunnel, stopTunnel } from '../services/tunnel.service.js';
 
 export default async function healthRoutes(fastify: FastifyInstance) {
+  // Public health check — minimal info
   fastify.get('/health', async () => {
+    return {
+      success: true,
+      data: {
+        status: 'ok',
+        uptime: process.uptime(),
+        version: '1.0.0',
+      },
+    };
+  });
+
+  // Authenticated health — full info
+  fastify.get('/health/full', {
+    onRequest: [fastify.authenticate],
+  }, async () => {
     const tunnel = getTunnelStatus();
     return {
       success: true,
@@ -20,8 +35,20 @@ export default async function healthRoutes(fastify: FastifyInstance) {
     };
   });
 
-  // POST /config/update — update server config (requires server restart)
-  fastify.post('/config/update', async (request: FastifyRequest<{
+  // POST /config/update — admin only
+  fastify.post('/config/update', {
+    onRequest: [fastify.requireAdmin],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          workspaceRoot: { type: 'string' },
+          port: { type: 'number' },
+          host: { type: 'string' },
+        },
+      },
+    },
+  }, async (request: FastifyRequest<{
     Body: { workspaceRoot?: string; port?: number; host?: string }
   }>) => {
     const { workspaceRoot, port, host } = request.body;
@@ -33,6 +60,12 @@ export default async function healthRoutes(fastify: FastifyInstance) {
       return { success: false, error: '.env file not found' };
     }
 
+    // Validate no newlines in values (prevent .env injection)
+    const vals = [workspaceRoot, host].filter(Boolean);
+    if (vals.some(v => v && /[\n\r]/.test(v))) {
+      return { success: false, error: 'Invalid characters in config value' };
+    }
+
     let env = readFileSync(envPath, 'utf-8');
     if (workspaceRoot) env = env.replace(/WORKSPACE_ROOT=.*/, `WORKSPACE_ROOT=${workspaceRoot}`);
     if (port) env = env.replace(/PORT=.*/, `PORT=${port}`);
@@ -42,17 +75,24 @@ export default async function healthRoutes(fastify: FastifyInstance) {
     return { success: true, data: { message: 'Config updated. Restart server to apply.' } };
   });
 
-  fastify.get('/tunnel/status', async () => {
+  // Tunnel endpoints — admin only
+  fastify.get('/tunnel/status', {
+    onRequest: [fastify.authenticate],
+  }, async () => {
     const status = getTunnelStatus();
     return { success: true, data: status };
   });
 
-  fastify.post('/tunnel/start', async () => {
+  fastify.post('/tunnel/start', {
+    onRequest: [fastify.requireAdmin],
+  }, async () => {
     const result = startTunnel();
     return { success: result.success, data: result };
   });
 
-  fastify.post('/tunnel/stop', async () => {
+  fastify.post('/tunnel/stop', {
+    onRequest: [fastify.requireAdmin],
+  }, async () => {
     const result = stopTunnel();
     return { success: result.success, data: result };
   });

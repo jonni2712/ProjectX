@@ -9,15 +9,19 @@ interface ActiveTerminal {
   pty: pty.IPty;
   outputBuffer: string; // Scrollback buffer for reconnection
   listeners: Set<(data: string) => void>;
+  userId: string;
 }
 
 const MAX_BUFFER_SIZE = 100_000; // ~100KB scrollback per terminal
 const activeTerminals = new Map<string, ActiveTerminal>();
 
-export function createTerminal(cwd: string, cols: number = 80, rows: number = 24): ActiveTerminal {
+export function createTerminal(cwd: string, cols: number = 80, rows: number = 24, userId: string = ''): ActiveTerminal {
   const absPath = safePath(cwd);
   const id = uuid();
   const shell = process.env.SHELL || '/bin/zsh';
+
+  // Filter out sensitive env vars before passing to pty
+  const { JWT_SECRET, AUTH_PASSWORD_HASH, AUTH_PASSWORD, ANTHROPIC_API_KEY, ...safeEnv } = process.env;
 
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
@@ -25,7 +29,7 @@ export function createTerminal(cwd: string, cols: number = 80, rows: number = 24
     rows,
     cwd: absPath,
     env: {
-      ...process.env,
+      ...safeEnv,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
     } as Record<string, string>,
@@ -46,6 +50,7 @@ export function createTerminal(cwd: string, cols: number = 80, rows: number = 24
     pty: ptyProcess,
     outputBuffer: '',
     listeners: new Set(),
+    userId,
   };
 
   // Capture output for scrollback and listeners

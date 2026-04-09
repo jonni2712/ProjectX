@@ -31,7 +31,7 @@ export function startClaudeCliSession(cwd: string, prompt: string): string {
   const absPath = safePath(cwd);
   const id = uuid();
 
-  const proc = spawn('claude', ['--print', prompt], {
+  const proc = spawn('claude', ['--print', '--', prompt], {
     cwd: absPath,
     env: { ...process.env },
     stdio: ['pipe', 'pipe', 'pipe'],

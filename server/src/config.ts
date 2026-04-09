@@ -22,6 +22,12 @@ export const config = {
   watcherDebounce: parseInt(process.env.WATCHER_DEBOUNCE || '500', 10),
 } as const;
 
+// Validate JWT secret is not default
+if (config.jwt.secret === 'change-me-to-a-random-secret' || config.jwt.secret === 'change-me-in-production') {
+  console.error('FATAL: JWT_SECRET must be changed from default. Set a strong secret in .env');
+  process.exit(1);
+}
+
 // Validate workspace root exists
 if (!existsSync(config.workspaceRoot)) {
   console.error(`WORKSPACE_ROOT does not exist: ${config.workspaceRoot}`);

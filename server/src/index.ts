@@ -29,7 +29,17 @@ const fastify = Fastify({
 
 // --- Plugins ---
 await fastify.register(fastifyCors, {
-  origin: true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Electron)
+    if (!origin) return callback(null, true);
+    // Allow localhost
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
+    // Allow any https origin (tunnel domains)
+    if (origin.startsWith('https://')) return callback(null, true);
+    callback(new Error('CORS not allowed'), false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

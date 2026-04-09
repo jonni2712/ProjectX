@@ -39,6 +39,10 @@ export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
 
 export async function readFileContent(filePath: string): Promise<{ content: string; encoding: string; isBinary: boolean }> {
   const absPath = safePath(filePath);
+  const stats = await stat(absPath);
+  if (stats.size > 50 * 1024 * 1024) {
+    throw new Error('File too large to read (max 50MB)');
+  }
   const buffer = await readFile(absPath);
 
   // Check if binary by looking for null bytes in first 8KB

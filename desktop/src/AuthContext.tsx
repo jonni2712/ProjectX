@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkServer() {
     try {
-      await api.health();
+      await api.ping();
       setState(s => ({ ...s, isLoading: false, serverOnline: true }));
     } catch {
       setState(s => ({ ...s, isLoading: false, serverOnline: false }));

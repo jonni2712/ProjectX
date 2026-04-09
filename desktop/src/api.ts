@@ -49,7 +49,13 @@ export const api = {
   },
 
   // Health
-  async health() { return request('/health'); },
+  async health() { return request('/health/full'); },
+
+  async ping() {
+    const res = await fetch(`${API_BASE}/health`);
+    const data = await res.json();
+    return data.data;
+  },
 
   // Files
   async listFiles(path: string = '/') {
@@ -66,8 +72,8 @@ export const api = {
 
   // Tunnel
   async tunnelStatus() { return request('/tunnel/status'); },
-  async tunnelStart() { return request('/tunnel/start', { method: 'POST' }); },
-  async tunnelStop() { return request('/tunnel/stop', { method: 'POST' }); },
+  async tunnelStart() { return request('/tunnel/start', { method: 'POST', body: '{}' }); },
+  async tunnelStop() { return request('/tunnel/stop', { method: 'POST', body: '{}' }); },
 
   // Config
   async updateConfig(config: { workspaceRoot?: string; port?: number; host?: string }) {

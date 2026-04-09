@@ -11,6 +11,11 @@ export function safePath(userPath: string): string {
     return config.workspaceRoot;
   }
 
+  // Reject absolute paths with drive letters
+  if (/^[a-zA-Z]:/.test(userPath)) {
+    throw new PathTraversalError(userPath);
+  }
+
   // Strip leading slashes so resolve treats it as relative to workspace
   const stripped = userPath.replace(/^[/\\]+/, '');
   const normalized = normalize(stripped).replace(/^(\.\.(\/|\\|$))+/, '');
