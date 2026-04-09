@@ -1,37 +1,44 @@
-# ProjectX — Remote Development Platform
+# ProjectX
 
-Mobile-first remote dev environment: Fastify backend on desktop, Flutter Android app via Tailscale.
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/nicobailon/projectx)](https://github.com/nicobailon/projectx/releases)
+[![GitHub stars](https://img.shields.io/github/stars/nicobailon/projectx)](https://github.com/nicobailon/projectx/stargazers)
+
+> A remote development platform with a desktop dashboard, mobile client, and self-hosted server.
+
+## What is ProjectX?
+
+ProjectX lets you manage files, run terminals, interact with Git, and chat with Claude AI on a self-hosted server -- all from a desktop Electron app or an Android phone. The server runs on your machine and clients connect securely via Cloudflare Tunnel or Tailscale.
+
+## Screenshots
+
+*Coming soon.*
+
+## Architecture
+
+```
+┌──────────────────┐         ┌──────────────────┐         ┌──────────────────┐
+│   Desktop App    │         │      Server      │         │   Mobile App     │
+│  Electron/React  │◄──────►│  Fastify + SQLite │◄──────►│     Flutter      │
+│   Tailwind CSS   │  HTTPS  │   TypeScript     │  HTTPS  │   Android/iOS   │
+└──────────────────┘  WSS    └──────────────────┘  WSS    └──────────────────┘
+                                     │
+                              ┌──────┴──────┐
+                              │  Your Files │
+                              │  Git Repos  │
+                              │  Terminals  │
+                              └─────────────┘
+```
 
 ## Quick Start
 
-### 1. Server (on your desktop PC)
+### Option 1: Desktop App (Recommended)
 
-```bash
-# One command does everything:
-./setup.sh
-```
+Download the latest release from the [Releases](https://github.com/nicobailon/projectx/releases) page. The desktop app bundles the server -- install, configure, and start coding.
 
-This will:
-- Check prerequisites (Node.js 20+, git, python3)
-- Install npm dependencies
-- Ask for workspace path, username, password
-- Generate JWT secret
-- Start the server
+### Option 2: Mobile App
 
-**Or manually:**
-
-```bash
-cd server
-npm install
-cp .env.example .env
-npm run setup              # Generate password hash
-# Edit .env with your settings
-npm run dev                # Start dev server
-```
-
-### 2. Flutter App (on your Android phone)
-
-Build the APK on any machine with Flutter:
+Build or download the APK, install it on your Android device, and connect to your running server.
 
 ```bash
 cd flutter_app
@@ -41,65 +48,62 @@ flutter build apk --release
 
 The APK will be at `flutter_app/build/app/outputs/flutter-apk/app-release.apk`.
 
-Install it on your phone, open it, and enter:
-- **Server URL**: `http://<your-tailscale-ip>:3000`
-- **Username/Password**: what you set during setup
+### Option 3: Manual Server Setup
 
-## Architecture
-
-```
-Android Phone (Flutter)  ──Tailscale──>  Desktop PC (Fastify)
-     │                                        │
-     ├── REST API ─────────────────────> File CRUD, Git, Auth, Locks
-     └── WebSocket (multiplexed) ─────> Terminal, Claude, File Watch
+```bash
+cd server
+npm install
+cp .env.example .env
+npm run setup        # Generate password hash
+# Edit .env with your settings
+npm run dev          # Start the server
 ```
 
-## .env Configuration
+Or use the one-command setup script:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKSPACE_ROOT` | `/github` | Root directory for all file operations |
-| `PORT` | `3000` | Server port |
-| `JWT_SECRET` | - | Random secret for JWT signing |
-| `AUTH_USERNAME` | `admin` | Login username |
-| `AUTH_PASSWORD_HASH` | - | bcrypt hash (use `npm run setup`) |
-| `ANTHROPIC_API_KEY` | - | Optional: Claude API fallback |
-| `JWT_EXPIRES_IN` | `24h` | JWT token expiry |
-| `REFRESH_TOKEN_EXPIRES_IN` | `7d` | Refresh token expiry |
+```bash
+./setup.sh
+```
 
 ## Features
 
-- **File Manager**: Full CRUD, rename, move, copy, upload, download, zip/unzip
-- **Code Editor**: Syntax-aware, search, unsaved tracking, lock awareness
-- **Terminal**: Persistent sessions (survive disconnects), multiple tabs
-- **Claude**: CLI mode + API fallback, streaming chat
-- **Git**: Status, add, commit, push, pull, checkout, diff, discard
-- **Locks**: File-level + project-level, Syncthing conflict prevention
-- **Auth**: JWT + refresh tokens, rate limiting, audit logging
+| Feature | Description |
+|---------|-------------|
+| File Manager | Full CRUD, rename, move, copy, upload, download, zip/unzip |
+| Code Editor | Syntax highlighting, search, unsaved tracking, lock awareness |
+| Terminal | Persistent sessions that survive disconnects, multiple tabs |
+| Claude AI | CLI mode + API fallback, streaming chat |
+| Git Integration | Status, add, commit, push, pull, checkout, diff, discard |
+| File Locks | File-level + project-level locks, Syncthing conflict prevention |
+| Authentication | JWT + refresh tokens, rate limiting, audit logging |
+| Secure Tunnels | Cloudflare Tunnel (HTTPS/WSS) or Tailscale for connectivity |
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Server | Fastify, TypeScript, SQLite, node-pty |
+| Desktop App | Electron, React, Tailwind CSS, Vite |
+| Mobile App | Flutter, Dart, Riverpod |
+| Auth | JWT, bcrypt, WebSocket ticket auth |
+| Connectivity | Cloudflare Tunnel, Tailscale |
 
 ## Project Structure
 
 ```
 ProjectX/
-├── server/               # Fastify backend (TypeScript)
-│   ├── src/
-│   │   ├── index.ts          # Entry point
-│   │   ├── config.ts         # Environment config
-│   │   ├── plugins/auth.ts   # JWT + WS ticket auth
-│   │   ├── routes/           # REST endpoints
-│   │   ├── services/         # Business logic
-│   │   ├── ws/               # WebSocket handlers
-│   │   ├── db/               # SQLite schema
-│   │   └── utils/            # Path guard, types
-│   └── data/                 # SQLite DB (auto-created)
-├── flutter_app/          # Flutter Android app (Dart)
-│   └── lib/
-│       ├── main.dart
-│       ├── config/           # API endpoints, theme
-│       ├── models/           # Data models
-│       ├── services/         # API/WS clients
-│       ├── providers/        # Riverpod state
-│       └── screens/          # UI screens
-├── setup.sh              # One-click setup & start
-└── docs/plans/           # Design documents
+├── server/           # Fastify backend (TypeScript)
+├── desktop/          # Electron dashboard (React + Tailwind)
+├── flutter_app/      # Flutter mobile client (Dart)
+├── docs/             # Documentation and design plans
+├── setup.sh          # One-command setup script
+└── .github/          # CI workflows, issue & PR templates
 ```
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+## License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
