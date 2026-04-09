@@ -1,0 +1,40 @@
+# Server
+server/node_modules/
+server/dist/
+server/data/
+server/.env
+server/.env.local
+
+# Flutter
+flutter_app/build/
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/android/.gradle/
+flutter_app/android/local.properties
+flutter_app/pubspec.lock
+
+# Desktop (Electron)
+desktop/node_modules/
+desktop/dist/
+desktop/dist-electron/
+desktop/release/
+desktop/cert/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Security
+*.pfx
+*.p12
+*.jks
+*.keystore
+key.properties
+
+# System
+Thumbs.db
+.claude/

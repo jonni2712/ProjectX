@@ -1,0 +1,86 @@
+{
+  "name": "projectx-server",
+  "version": "1.0.0",
+  "description": "ProjectX - Remote Development Server",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build:web": "vite build",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "build": "npm run build:web && npm run build:electron && electron-builder",
+    "preview": "vite preview",
+    "electron:dev": "npm run build:web && npm run build:electron && electron ."
+  },
+  "build": {
+    "appId": "dev.projectx.server",
+    "productName": "ProjectX Server",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../server/src",
+        "to": "server/src"
+      },
+      {
+        "from": "../server/package.json",
+        "to": "server/package.json"
+      },
+      {
+        "from": "../server/tsconfig.json",
+        "to": "server/tsconfig.json"
+      },
+      {
+        "from": "../server/.env.example",
+        "to": "server/.env.example"
+      },
+      {
+        "from": "../server/node_modules",
+        "to": "server/node_modules"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icon.png",
+      "category": "public.app-category.developer-tools"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jonni2712",
+        "repo": "ProjectX"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "lucide-react": "^1.8.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.14.0"
+  }
+}
