@@ -2,6 +2,7 @@
   "name": "projectx-server",
   "version": "1.0.0",
   "description": "ProjectX - Remote Development Server",
+  "author": "Jonathan Boccotti",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
