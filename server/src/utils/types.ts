@@ -75,6 +75,7 @@ export interface JwtPayload {
   userId: string;
   username: string;
   role: 'admin' | 'user';
+  tv: number;  // token_version — incremented on logout/deactivation to invalidate live JWTs
 }
 
 export interface User {

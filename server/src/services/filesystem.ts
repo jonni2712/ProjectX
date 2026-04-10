@@ -15,10 +15,20 @@ export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
   const entries = await readdir(absPath, { withFileTypes: true });
 
   const results: FileEntry[] = [];
-  const hiddenSystemFiles = new Set(['.stfolder', '.stignore', '.stversions', '.git', '.DS_Store', 'Thumbs.db']);
+  // Hide Syncthing markers, git internals, secrets, and OS junk from the listing.
+  // NOTE: path-guard.ts is the real security boundary — this set only improves UX.
+  const hiddenSystemFiles = new Set([
+    '.stfolder', '.stignore', '.stversions',
+    '.git',
+    '.ssh', '.aws', '.gnupg', '.npmrc', '.netrc',
+    '.DS_Store', 'Thumbs.db',
+  ]);
   for (const entry of entries) {
-    // Skip Syncthing markers, .git, and system files
+    // Skip Syncthing markers, git, secrets, and system files
     if (hiddenSystemFiles.has(entry.name)) continue;
+    // Skip .env and .env.* (common secret files)
+    const lower = entry.name.toLowerCase();
+    if (lower === '.env' || lower.startsWith('.env.')) continue;
     const fullPath = join(absPath, entry.name);
     try {
       const stats = await stat(fullPath);

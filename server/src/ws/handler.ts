@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
 import { validateWsTicket } from '../plugins/auth.js';
+import { isOriginAllowed } from '../config.js';
 import {
   createTerminal, getTerminal, writeToTerminal, resizeTerminal,
   destroyTerminal, listTerminals, addTerminalListener, removeTerminalListener,
@@ -34,6 +35,14 @@ export function broadcastToAll(message: WsMessage) {
 
 export default async function wsHandler(fastify: FastifyInstance) {
   fastify.get('/ws', { websocket: true }, (socket, request) => {
+    // WebSockets are NOT subject to CORS in browsers, so the server MUST verify
+    // Origin manually to prevent cross-site WS hijacking.
+    const origin = request.headers.origin as string | undefined;
+    if (!isOriginAllowed(origin)) {
+      socket.close(4000, 'Origin not allowed');
+      return;
+    }
+
     const url = new URL(request.url, `http://${request.headers.host}`);
     const ticket = url.searchParams.get('ticket');
 

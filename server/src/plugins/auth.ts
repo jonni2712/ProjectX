@@ -3,6 +3,7 @@ import fastifyJwt from '@fastify/jwt';
 import fp from 'fastify-plugin';
 import { config } from '../config.js';
 import { randomBytes } from 'crypto';
+import { getTokenVersion } from '../db/database.js';
 import type { JwtPayload } from '../utils/types.js';
 
 // In-memory ticket store for secure WebSocket auth
@@ -38,10 +39,22 @@ async function authPlugin(fastify: FastifyInstance) {
     sign: { expiresIn: config.jwt.expiresIn },
   });
 
+  // Verify the JWT's token_version matches the current DB value.
+  // If the user logged out, changed password, was deactivated, or had role
+  // changed, their token_version was bumped and the JWT becomes invalid.
+  function checkTokenVersion(payload: JwtPayload): boolean {
+    const current = getTokenVersion(payload.userId);
+    if (current === null) return false; // user missing or inactive
+    return current === payload.tv;
+  }
+
   // Decorator to protect routes
   fastify.decorate('authenticate', async function (request: FastifyRequest, reply: FastifyReply) {
     try {
       await request.jwtVerify();
+      if (!checkTokenVersion(request.user)) {
+        return reply.status(401).send({ success: false, error: 'Session revoked — please log in again' });
+      }
     } catch (err) {
       reply.status(401).send({ success: false, error: 'Unauthorized' });
     }
@@ -51,8 +64,11 @@ async function authPlugin(fastify: FastifyInstance) {
   fastify.decorate('requireAdmin', async function (request: FastifyRequest, reply: FastifyReply) {
     try {
       await request.jwtVerify();
+      if (!checkTokenVersion(request.user)) {
+        return reply.status(401).send({ success: false, error: 'Session revoked — please log in again' });
+      }
       if (request.user.role !== 'admin') {
-        reply.status(403).send({ success: false, error: 'Admin access required' });
+        return reply.status(403).send({ success: false, error: 'Admin access required' });
       }
     } catch (err) {
       reply.status(401).send({ success: false, error: 'Unauthorized' });

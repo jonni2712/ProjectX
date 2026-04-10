@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
-import { db, audit, getUserByUsername, getUserById, createUser, updateUser, listUsers, deleteUser } from '../db/database.js';
+import { db, audit, getUserByUsername, getUserById, createUser, updateUser, listUsers, deleteUser, bumpTokenVersion } from '../db/database.js';
 import { issueWsTicket } from '../plugins/auth.js';
 
 export default async function authRoutes(fastify: FastifyInstance) {
@@ -40,7 +40,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ success: false, error: 'Invalid credentials' });
     }
 
-    const token = fastify.jwt.sign({ userId: user.id, username: user.username, role: user.role as 'admin' | 'user' });
+    const token = fastify.jwt.sign({
+      userId: user.id,
+      username: user.username,
+      role: user.role as 'admin' | 'user',
+      tv: user.token_version,
+    });
 
     // Update last_login
     updateUser(user.id, { last_login: new Date().toISOString() });
@@ -92,9 +97,27 @@ export default async function authRoutes(fastify: FastifyInstance) {
     db.prepare('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
       .run(newRefreshToken, row.user_id, refreshExpiresAt);
 
-    const token = fastify.jwt.sign({ userId: user.id, username: user.username, role: user.role as 'admin' | 'user' });
+    const token = fastify.jwt.sign({
+      userId: user.id,
+      username: user.username,
+      role: user.role as 'admin' | 'user',
+      tv: user.token_version,
+    });
 
     return { success: true, data: { token, refreshToken: newRefreshToken } };
+  });
+
+  // POST /auth/logout — revoke current session and all refresh tokens for this user
+  fastify.post('/auth/logout', {
+    onRequest: [fastify.authenticate],
+  }, async (request) => {
+    const userId = request.user.userId;
+    // Bump token_version so all JWTs for this user immediately become invalid
+    bumpTokenVersion(userId);
+    // Wipe every refresh token for this user
+    db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(userId);
+    audit(userId, 'logout', request.user.username);
+    return { success: true, data: { message: 'Logged out' } };
   });
 
   // POST /auth/ws-ticket (get a single-use ticket for WebSocket auth)
@@ -152,8 +175,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ success: false, error: 'Current password is incorrect' });
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(newPassword, 12);
     updateUser(user.id, { password_hash: newHash });
+    // Invalidate all existing JWTs/refresh tokens after a password change
+    bumpTokenVersion(user.id);
+    db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(user.id);
     audit(user.id, 'password_changed', user.username);
 
     return { success: true, data: { message: 'Password updated' } };
@@ -197,7 +223,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     const id = uuid();
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
     createUser(id, username, passwordHash, role);
     audit(request.user.userId, 'user_created', username, `role=${role}`);
 
@@ -234,6 +260,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     updateUser(id, fields);
+    // Role changes or deactivation must invalidate existing JWTs
+    if (body.role !== undefined || body.active === false) {
+      bumpTokenVersion(id);
+      db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(id);
+    }
     audit(request.user.userId, 'user_updated', user.username, JSON.stringify(fields));
 
     return { success: true, data: { id, ...fields, active: fields.active !== undefined ? !!fields.active : undefined } };
