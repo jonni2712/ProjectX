@@ -32,6 +32,12 @@ export const config = {
   // CORS: list of extra origins allowed in addition to localhost/127.0.0.1.
   // Set this to your Cloudflare tunnel domain (or custom domain) in .env.
   publicOrigins: parseOrigins(process.env.PUBLIC_ORIGINS),
+  // Optional supply-chain hardening for cloudflared: comma-separated list of
+  // SHA256 hashes (lowercase hex) that the local cloudflared binary MUST match
+  // before the server will start the tunnel. If empty, no verification is
+  // performed but the detected hash is logged for observability.
+  cloudflaredExpectedHashes: parseOrigins(process.env.CLOUDFLARED_EXPECTED_SHA256)
+    .map(h => h.toLowerCase()),
 } as const;
 
 // Validate JWT secret: reject known defaults, require reasonable length AND

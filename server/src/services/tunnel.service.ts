@@ -1,7 +1,9 @@
 import { execSync, spawn, ChildProcess } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from 'fs';
+import { createHash } from 'crypto';
 import { join } from 'path';
 import os from 'os';
+import { config } from '../config.js';
 
 interface TunnelStatus {
   configured: boolean;
@@ -74,6 +76,68 @@ function getCloudflaredPath(): string {
   return 'cloudflared';
 }
 
+// Cache the computed hash per-path so we don't rehash the binary on every
+// tunnel start. If the user upgrades cloudflared, restarting the server picks
+// up the new hash.
+const hashCache = new Map<string, string>();
+
+/**
+ * Compute the SHA256 of the cloudflared binary at the given path.
+ * Returns null if the binary isn't a real file (e.g. just "cloudflared" on
+ * Linux where we rely on PATH resolution by the kernel).
+ */
+function computeCloudflaredHash(binaryPath: string): string | null {
+  // Only hash when we have an absolute path to a real file. The Linux fallback
+  // of "cloudflared" is a PATH lookup at spawn time, not a real file path.
+  if (!binaryPath.includes('/') && !binaryPath.includes('\\')) return null;
+  if (!existsSync(binaryPath)) return null;
+
+  const cached = hashCache.get(binaryPath);
+  if (cached) return cached;
+
+  try {
+    const buf = readFileSync(binaryPath);
+    const hash = createHash('sha256').update(buf).digest('hex');
+    hashCache.set(binaryPath, hash);
+    return hash;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verify the cloudflared binary against the user-configured hash allowlist.
+ * Returns null on success (or when verification is disabled), or an error
+ * message describing the mismatch.
+ */
+function verifyCloudflaredHash(binaryPath: string): string | null {
+  const expected = config.cloudflaredExpectedHashes;
+
+  const actual = computeCloudflaredHash(binaryPath);
+
+  // Always log the detected hash for observability so users can compare it
+  // against Cloudflare's published checksums without enabling enforcement.
+  if (actual) {
+    console.log(`[tunnel] cloudflared SHA256: ${actual}`);
+  }
+
+  // No allowlist configured = observability only, no enforcement.
+  if (expected.length === 0) return null;
+
+  if (!actual) {
+    return `cloudflared binary not found or not readable at ${binaryPath} — cannot verify hash`;
+  }
+
+  if (!expected.includes(actual)) {
+    return `cloudflared binary hash mismatch: detected ${actual}, ` +
+      `expected one of [${expected.join(', ')}]. ` +
+      `Refusing to start tunnel. Update CLOUDFLARED_EXPECTED_SHA256 in .env ` +
+      `after verifying the new hash against Cloudflare's release page.`;
+  }
+
+  return null;
+}
+
 function readTunnelConfig(): { tunnelId: string | null; domain: string | null } {
   try {
     const content = readFileSync(CONFIG_PATH, 'utf-8');
@@ -125,6 +189,14 @@ export function startTunnel(): { success: boolean; message: string } {
   }
 
   const cloudflared = getCloudflaredPath();
+
+  // Supply-chain hardening: if the user has pinned an expected hash list,
+  // refuse to spawn a cloudflared that doesn't match. No-op when empty.
+  const hashError = verifyCloudflaredHash(cloudflared);
+  if (hashError) {
+    return { success: false, message: hashError };
+  }
+
   try {
     tunnelProcess = spawn(cloudflared, ['tunnel', '--config', CONFIG_PATH, 'run', tunnelId], {
       detached: true,
