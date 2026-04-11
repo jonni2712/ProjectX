@@ -34,6 +34,11 @@ jobs:
       # On macOS: if Apple Developer secrets are set, the app is signed
       # with Developer ID and notarized with Apple notarytool.
       # Otherwise the build still succeeds producing an unsigned DMG.
+      #
+      # IMPORTANT: GitHub Actions expands missing secrets to empty strings.
+      # electron-builder sees an empty CSC_LINK as "try to use file path ''"
+      # which resolves to the cwd — breaking the build with "desktop not a
+      # file". We explicitly unset the empty vars before invoking electron.
       - name: Build desktop app
         shell: bash
         env:
@@ -46,10 +51,17 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # Drop empty signing vars so electron-builder doesn't try to use them
+          [ -z "${CSC_LINK:-}" ] && unset CSC_LINK || true
+          [ -z "${CSC_KEY_PASSWORD:-}" ] && unset CSC_KEY_PASSWORD || true
+          [ -z "${APPLE_ID:-}" ] && unset APPLE_ID || true
+          [ -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ] && unset APPLE_APP_SPECIFIC_PASSWORD || true
+          [ -z "${APPLE_TEAM_ID:-}" ] && unset APPLE_TEAM_ID || true
+
           cd desktop
           npm run build:web
           npx tsc -p electron/tsconfig.json
-          if [ "${{ matrix.os }}" = "macos-latest" ] && [ -n "$APPLE_ID" ] && [ -n "$CSC_LINK" ]; then
+          if [ "${{ matrix.os }}" = "macos-latest" ] && [ -n "${APPLE_ID:-}" ] && [ -n "${CSC_LINK:-}" ]; then
             echo "Building macOS app with code signing + notarization"
             npx electron-builder --publish always -c.mac.notarize=true
           else
