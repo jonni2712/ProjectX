@@ -152,20 +152,58 @@ export async function zipDirectory(dirPath: string): Promise<Buffer> {
   });
 }
 
+// Hard limits for archive extraction. A zip bomb is a small archive that
+// expands to TBs of data; without these the server will fill the disk and OOM.
+const MAX_EXTRACTED_TOTAL_BYTES = 500 * 1024 * 1024; // 500 MB total
+const MAX_EXTRACTED_FILES = 10_000;
+const MAX_EXTRACTED_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per file
+
 export async function unzipToDirectory(zipBuffer: Buffer, destPath: string): Promise<void> {
   const absDest = safePath(destPath);
   await mkdir(absDest, { recursive: true });
   const directory = await unzipper.Open.buffer(zipBuffer);
+
+  let totalBytes = 0;
+  let totalFiles = 0;
+
   for (const file of directory.files) {
+    if (++totalFiles > MAX_EXTRACTED_FILES) {
+      throw new Error(`Archive contains too many entries (max ${MAX_EXTRACTED_FILES})`);
+    }
+
+    // Note on symlinks: unzipper's type only exposes "Directory" | "File", so
+    // symlinks (if present in the zip) are surfaced as plain files. writeFile
+    // will write the link target as file content, NOT create a real symlink,
+    // so we get safe behavior automatically.
+
     const targetPath = join(absDest, file.path);
-    // Validate each extracted path
-    const rel = relativePath(targetPath);
-    if (rel.startsWith('..')) continue; // Skip path traversal attempts
+    // safePath() would throw on traversal — use it instead of the previous
+    // relativePath check, which silently swallowed traversal attempts.
+    try {
+      safePath(relativePath(targetPath));
+    } catch {
+      continue; // path tried to escape workspace, skip silently
+    }
+
     if (file.type === 'Directory') {
       await mkdir(targetPath, { recursive: true });
     } else {
+      // file.uncompressedSize is reported by the zip headers (untrusted, but a
+      // useful early reject for obvious bombs).
+      const declaredSize = (file as any).uncompressedSize ?? 0;
+      if (declaredSize > MAX_EXTRACTED_FILE_BYTES) {
+        throw new Error(`Archive entry "${file.path}" exceeds per-file size limit (${MAX_EXTRACTED_FILE_BYTES} bytes)`);
+      }
       await mkdir(dirname(targetPath), { recursive: true });
       const content = await file.buffer();
+      // Re-check the actual size in case the header lied.
+      if (content.length > MAX_EXTRACTED_FILE_BYTES) {
+        throw new Error(`Archive entry "${file.path}" exceeds per-file size limit when decompressed`);
+      }
+      totalBytes += content.length;
+      if (totalBytes > MAX_EXTRACTED_TOTAL_BYTES) {
+        throw new Error(`Archive total decompressed size exceeds limit (${MAX_EXTRACTED_TOTAL_BYTES} bytes)`);
+      }
       await writeFile(targetPath, content);
     }
   }

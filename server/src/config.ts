@@ -34,16 +34,45 @@ export const config = {
   publicOrigins: parseOrigins(process.env.PUBLIC_ORIGINS),
 } as const;
 
-// Validate JWT secret: reject known defaults and require reasonable length.
+// Validate JWT secret: reject known defaults, require reasonable length AND
+// reject low-entropy strings (e.g. "aaaaaaaa..." or "12345678..." which trivially
+// pass a length check but offer no real security).
 const KNOWN_DEFAULTS = new Set([
   'change-me-to-a-random-secret',
   'change-me-in-production',
   'secret',
   '',
 ]);
-if (KNOWN_DEFAULTS.has(config.jwt.secret) || config.jwt.secret.length < 32) {
+
+function shannonEntropy(str: string): number {
+  if (str.length === 0) return 0;
+  const counts = new Map<string, number>();
+  for (const c of str) counts.set(c, (counts.get(c) || 0) + 1);
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / str.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
+function isJwtSecretWeak(secret: string): string | null {
+  if (KNOWN_DEFAULTS.has(secret)) return 'matches a known default value';
+  if (secret.length < 32) return 'is shorter than 32 characters';
+  // A truly random hex string has ~4 bits of entropy per char (4 * 32 = 128).
+  // We require >= 3 bits/char as a sanity floor — that catches things like
+  // "aaaa...", "12345...", "passwordpasswordpassword..." but accepts any real
+  // random output from openssl rand / crypto.randomBytes.
+  const bitsPerChar = shannonEntropy(secret);
+  if (bitsPerChar < 3.0) return `has too low entropy (${bitsPerChar.toFixed(2)} bits/char, need >= 3.0)`;
+  return null;
+}
+
+const jwtWeakness = isJwtSecretWeak(config.jwt.secret);
+if (jwtWeakness !== null) {
   console.error(
-    'FATAL: JWT_SECRET must be a strong random string (at least 32 characters).\n' +
+    `FATAL: JWT_SECRET ${jwtWeakness}.\n` +
+    '       It must be a strong random string (at least 32 characters, high entropy).\n' +
     '       Generate one with:  openssl rand -hex 32\n' +
     '       Then set it in your .env file as JWT_SECRET=<value>.'
   );

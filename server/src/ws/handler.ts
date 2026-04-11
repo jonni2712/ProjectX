@@ -92,8 +92,14 @@ export default async function wsHandler(fastify: FastifyInstance) {
     connectedClients.add(client);
 
     function send(msg: WsMessage) {
-      if (socket.readyState === WebSocket.OPEN) {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      try {
         socket.send(JSON.stringify(msg));
+      } catch (err) {
+        // JSON.stringify can throw on circular refs; socket.send can throw if
+        // the socket died between the readyState check and the send. Either
+        // way we don't want to crash the message handler loop.
+        fastify.log.warn({ err }, 'WS send failed');
       }
     }
 

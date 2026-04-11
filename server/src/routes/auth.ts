@@ -6,6 +6,26 @@ import { config } from '../config.js';
 import { db, audit, getUserByUsername, getUserById, createUser, updateUser, listUsers, deleteUser, bumpTokenVersion } from '../db/database.js';
 import { issueWsTicket } from '../plugins/auth.js';
 
+const MIN_PASSWORD_LENGTH = 12;
+
+/**
+ * Returns null if the password is acceptable, or an error message string.
+ * We deliberately don't enforce complex character classes (which often push
+ * users toward "Password1!" patterns). Instead we just enforce a length floor —
+ * 12 chars of any kind has more entropy than 8 with mixed classes.
+ */
+function validatePasswordStrength(password: string): string | null {
+  if (typeof password !== 'string') return 'Password is required';
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+  }
+  // Reject all-same character passwords (length doesn't help "aaaaaaaaaaaa").
+  if (new Set(password).size < 4) {
+    return 'Password is too repetitive';
+  }
+  return null;
+}
+
 export default async function authRoutes(fastify: FastifyInstance) {
   // POST /auth/login
   fastify.post('/auth/login', {
@@ -173,6 +193,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
     },
   }, async (request, reply) => {
     const { currentPassword, newPassword } = request.body as { currentPassword: string; newPassword: string };
+
+    const weakness = validatePasswordStrength(newPassword);
+    if (weakness !== null) {
+      return reply.status(400).send({ success: false, error: weakness });
+    }
+
     const user = getUserById(request.user.userId);
     if (!user) {
       return reply.status(404).send({ success: false, error: 'User not found' });
@@ -224,6 +250,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
     },
   }, async (request, reply) => {
     const { username, password, role } = request.body as { username: string; password: string; role: 'admin' | 'user' };
+
+    const weakness = validatePasswordStrength(password);
+    if (weakness !== null) {
+      return reply.status(400).send({ success: false, error: weakness });
+    }
 
     const existing = getUserByUsername(username);
     if (existing) {
