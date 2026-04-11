@@ -31,14 +31,31 @@ jobs:
         run: cd desktop && npm ci
 
       # Build desktop app
+      # On macOS: if Apple Developer secrets are set, the app is signed
+      # with Developer ID and notarized with Apple notarytool.
+      # Otherwise the build still succeeds producing an unsigned DMG.
       - name: Build desktop app
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS code signing (Developer ID Application certificate, .p12)
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          # macOS notarization (via notarytool)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           cd desktop
           npm run build:web
           npx tsc -p electron/tsconfig.json
-          npx electron-builder --publish always
+          if [ "${{ matrix.os }}" = "macos-latest" ] && [ -n "$APPLE_ID" ] && [ -n "$CSC_LINK" ]; then
+            echo "Building macOS app with code signing + notarization"
+            npx electron-builder --publish always -c.mac.notarize=true
+          else
+            echo "Building without macOS signing/notarization"
+            npx electron-builder --publish always
+          fi
 
       # Upload artifacts
       - name: Upload artifacts
