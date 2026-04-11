@@ -15,6 +15,10 @@ class AuthService {
   String? _username;
   String? _role;
 
+  /// Callback fired when the server rejects our token (401) and refresh fails.
+  /// The auth provider sets this to push the UI back to the login screen.
+  void Function()? onSessionRevoked;
+
   String? get token => _token;
   String? get username => _username;
   String? get role => _role;
@@ -107,6 +111,17 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    // Best-effort: tell the server to bump our token_version so the JWT and any
+    // refresh tokens are immediately invalidated everywhere. We swallow errors
+    // because local logout must succeed even if the server is unreachable.
+    if (_token != null) {
+      try {
+        await _dio.post(
+          ApiConfig.logoutUrl,
+          options: Options(headers: {'Authorization': 'Bearer $_token'}),
+        );
+      } catch (_) { /* server down — local logout still proceeds */ }
+    }
     _token = null;
     _refreshToken = null;
     _username = null;
@@ -150,13 +165,34 @@ class AuthService {
       },
       onError: (error, handler) async {
         if (error.response?.statusCode == 401) {
-          final refreshed = await refreshTokens();
-          if (refreshed) {
-            error.requestOptions.headers['Authorization'] = 'Bearer $_token';
-            final response = await _dio.fetch(error.requestOptions);
-            handler.resolve(response);
-            return;
+          // Try refresh first — but only if the server didn't explicitly tell
+          // us the session was revoked (in that case refresh would also fail).
+          final errMsg = error.response?.data is Map
+              ? (error.response!.data['error']?.toString() ?? '')
+              : '';
+          final isRevoked = errMsg.toLowerCase().contains('revoked');
+
+          if (!isRevoked) {
+            final refreshed = await refreshTokens();
+            if (refreshed) {
+              error.requestOptions.headers['Authorization'] = 'Bearer $_token';
+              final response = await _dio.fetch(error.requestOptions);
+              handler.resolve(response);
+              return;
+            }
           }
+
+          // 401 + (revoked OR refresh failed) = session is dead. Wipe local
+          // state and let the provider push the UI back to login.
+          _token = null;
+          _refreshToken = null;
+          _username = null;
+          _role = null;
+          await _storage.delete(key: 'jwt_token');
+          await _storage.delete(key: 'refresh_token');
+          await _storage.delete(key: 'username');
+          await _storage.delete(key: 'user_role');
+          if (onSessionRevoked != null) onSessionRevoked!();
         }
         handler.next(error);
       },

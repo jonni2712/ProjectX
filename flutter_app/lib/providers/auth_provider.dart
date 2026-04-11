@@ -44,7 +44,14 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _auth;
 
-  AuthNotifier(this._auth) : super(const AuthState());
+  AuthNotifier(this._auth) : super(const AuthState()) {
+    // When the server revokes our session (401 + refresh fails), the auth
+    // service has already cleared local credentials. We just need to push the
+    // UI back to the unauthenticated state so the login screen reappears.
+    _auth.onSessionRevoked = () {
+      if (mounted) state = const AuthState();
+    };
+  }
 
   Future<void> init() async {
     await _auth.init();

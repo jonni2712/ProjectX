@@ -2,6 +2,13 @@ const API_BASE = 'http://localhost:3000';
 
 let token: string | null = null;
 
+// Callback registered by AuthContext to force a logout when the server tells
+// us our session was revoked (HTTP 401 on a previously-valid token).
+let onUnauthenticated: (() => void) | null = null;
+export function setOnUnauthenticated(cb: (() => void) | null) {
+  onUnauthenticated = cb;
+}
+
 async function request(path: string, options: RequestInit = {}) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -10,6 +17,20 @@ async function request(path: string, options: RequestInit = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  // 401 on an authenticated request = stale/revoked token. Force the UI
+  // back to the login screen so the user can re-auth.
+  if (res.status === 401 && token) {
+    token = null;
+    if (onUnauthenticated) onUnauthenticated();
+    let errMsg = 'Session expired';
+    try {
+      const data = await res.json();
+      errMsg = data.error || errMsg;
+    } catch { /* not JSON */ }
+    throw new Error(errMsg);
+  }
+
   const data = await res.json();
   if (!data.success) throw new Error(data.error || 'Request failed');
   return data.data;
@@ -28,6 +49,18 @@ export const api = {
 
   async getMe() {
     return request('/auth/me');
+  },
+
+  /**
+   * Best-effort logout: tells the server to bump our token_version so the
+   * current JWT and any refresh tokens are immediately invalidated. We swallow
+   * errors because the local logout must succeed even if the server is down.
+   */
+  async logout() {
+    try {
+      await request('/auth/logout', { method: 'POST', body: '{}' });
+    } catch { /* server unreachable — local logout still proceeds */ }
+    token = null;
   },
 
   isAuthenticated() { return !!token; },

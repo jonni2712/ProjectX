@@ -21,6 +21,7 @@ class ApiConfig {
 
   // REST endpoints
   static String get loginUrl => '$_baseUrl/auth/login';
+  static String get logoutUrl => '$_baseUrl/auth/logout';
   static String get refreshUrl => '$_baseUrl/auth/refresh';
   static String get wsTicketUrl => '$_baseUrl/auth/ws-ticket';
   static String get healthUrl => '$_baseUrl/health';

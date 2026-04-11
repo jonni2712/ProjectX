@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from './api';
+import { api, setOnUnauthenticated } from './api';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -10,7 +10,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<string | null>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -22,6 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkServer();
+    // Register a hook so api.ts can force the UI back to login if the server
+    // ever rejects our token (revoked from another device, deactivated, etc.)
+    setOnUnauthenticated(() => {
+      setState(s => ({ ...s, isAuthenticated: false, user: null }));
+    });
+    return () => setOnUnauthenticated(null);
   }, []);
 
   async function checkServer() {
@@ -43,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function logout() {
+  async function logout() {
+    // Tell the server to revoke our session BEFORE clearing local state. This
+    // bumps token_version so any other device still holding our JWT is kicked.
+    await api.logout();
     setState(s => ({ ...s, isAuthenticated: false, user: null }));
   }
 
