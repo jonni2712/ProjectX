@@ -14,6 +14,7 @@ import projectRoutes from './routes/projects.js';
 import wsHandler from './ws/handler.js';
 import { startFileWatcher, stopFileWatcher } from './ws/file-watcher.js';
 import { destroyAllTerminals } from './services/terminal.service.js';
+import { killOrphanTunnel } from './services/tunnel.service.js';
 import { cleanExpiredLocks, cleanExpiredRefreshTokens } from './db/database.js';
 import { PathTraversalError } from './utils/path-guard.js';
 
@@ -83,6 +84,10 @@ setInterval(() => {
 
 // --- Startup ---
 try {
+  // Clean up any cloudflared tunnel left running by a previous (crashed) server.
+  // Otherwise the public hostname stays alive pointing at a dead process.
+  killOrphanTunnel();
+
   await fastify.listen({ port: config.port, host: config.host });
   startFileWatcher();
   console.log(`\n  ProjectX Server running at http://${config.host}:${config.port}`);

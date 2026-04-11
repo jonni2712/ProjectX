@@ -10,12 +10,59 @@ interface ActiveTerminal {
   outputBuffer: string; // Scrollback buffer for reconnection
   listeners: Set<(data: string) => void>;
   userId: string;
+  // Timestamp when the last listener was removed. The sweeper kills terminals
+  // that have been orphaned longer than ORPHAN_GRACE_MS. null = currently attached.
+  orphanedAt: number | null;
 }
 
 const MAX_BUFFER_SIZE = 100_000; // ~100KB scrollback per terminal
+const MAX_TERMINALS_PER_USER = 5; // Hard cap to prevent fork bombs
+const ORPHAN_GRACE_MS = 60_000; // Kill orphaned terminals after 60s (allows brief reconnect)
+const ORPHAN_SWEEP_INTERVAL_MS = 15_000; // Check for orphans every 15s
 const activeTerminals = new Map<string, ActiveTerminal>();
 
+// Periodic sweeper: destroy terminals that have been orphaned too long.
+// Stored on globalThis so hot-reload doesn't duplicate intervals.
+let orphanSweeperStarted = false;
+function startOrphanSweeper() {
+  if (orphanSweeperStarted) return;
+  orphanSweeperStarted = true;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, terminal] of activeTerminals) {
+      if (terminal.orphanedAt !== null && now - terminal.orphanedAt > ORPHAN_GRACE_MS) {
+        try {
+          terminal.pty.kill();
+        } catch { /* pty already dead */ }
+        activeTerminals.delete(id);
+        db.prepare('UPDATE terminal_sessions SET active = 0 WHERE id = ?').run(id);
+      }
+    }
+  }, ORPHAN_SWEEP_INTERVAL_MS).unref();
+}
+startOrphanSweeper();
+
+export class TerminalLimitError extends Error {
+  constructor() {
+    super(`Maximum of ${MAX_TERMINALS_PER_USER} terminals per user reached`);
+    this.name = 'TerminalLimitError';
+  }
+}
+
+function countTerminalsForUser(userId: string): number {
+  let count = 0;
+  for (const t of activeTerminals.values()) {
+    if (t.userId === userId) count++;
+  }
+  return count;
+}
+
 export function createTerminal(cwd: string, cols: number = 80, rows: number = 24, userId: string = ''): ActiveTerminal {
+  // Enforce per-user cap (an empty userId means anonymous and shares one bucket).
+  if (countTerminalsForUser(userId) >= MAX_TERMINALS_PER_USER) {
+    throw new TerminalLimitError();
+  }
+
   const absPath = safePath(cwd);
   const id = uuid();
   const shell = process.env.SHELL || '/bin/zsh';
@@ -51,6 +98,9 @@ export function createTerminal(cwd: string, cols: number = 80, rows: number = 24
     outputBuffer: '',
     listeners: new Set(),
     userId,
+    // Newly created terminals start "orphaned" — they become attached as soon as
+    // the first listener is added (immediately after creation in the WS handler).
+    orphanedAt: Date.now(),
   };
 
   // Capture output for scrollback and listeners
@@ -83,8 +133,22 @@ export function getTerminal(id: string): ActiveTerminal | undefined {
   return activeTerminals.get(id);
 }
 
-export function listTerminals(): TerminalSession[] {
-  return Array.from(activeTerminals.values()).map(t => t.session);
+export function listTerminals(userId?: string): TerminalSession[] {
+  const all = Array.from(activeTerminals.values());
+  const filtered = userId ? all.filter(t => t.userId === userId) : all;
+  return filtered.map(t => t.session);
+}
+
+/**
+ * Return the ids of all terminals belonging to the given user.
+ * Used by the WS handler to know which terminals to grace-kill on disconnect.
+ */
+export function listTerminalIdsForUser(userId: string): string[] {
+  const ids: string[] = [];
+  for (const [id, t] of activeTerminals) {
+    if (t.userId === userId) ids.push(id);
+  }
+  return ids;
 }
 
 export function writeToTerminal(id: string, data: string): boolean {
@@ -117,6 +181,8 @@ export function addTerminalListener(id: string, listener: (data: string) => void
   const terminal = activeTerminals.get(id);
   if (!terminal) return false;
   terminal.listeners.add(listener);
+  // A terminal with at least one listener is not orphaned.
+  terminal.orphanedAt = null;
   return true;
 }
 
@@ -124,6 +190,10 @@ export function removeTerminalListener(id: string, listener: (data: string) => v
   const terminal = activeTerminals.get(id);
   if (terminal) {
     terminal.listeners.delete(listener);
+    // When the last listener leaves, mark as orphaned and start the grace clock.
+    if (terminal.listeners.size === 0) {
+      terminal.orphanedAt = Date.now();
+    }
   }
 }
 

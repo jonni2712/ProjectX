@@ -20,16 +20,39 @@ interface AuthenticatedSocket {
   username: string;
   terminalListeners: Map<string, (data: string) => void>;
   claudeListeners: Map<string, (event: any) => void>;
+  // Null = no path filter (client gets every file event for backwards compat).
+  // Non-empty = only receive events whose relPath starts with one of these prefixes.
+  subscribedPaths: string[] | null;
 }
 
 const connectedClients = new Set<AuthenticatedSocket>();
 
+/**
+ * Broadcast to every connected client. Used for system-wide notifications.
+ * Wrapped in try/catch to prevent a single broken socket from crashing the loop.
+ */
 export function broadcastToAll(message: WsMessage) {
   const payload = JSON.stringify(message);
   for (const client of connectedClients) {
     if (client.ws.readyState === WebSocket.OPEN) {
-      client.ws.send(payload);
+      try { client.ws.send(payload); } catch { /* dead socket */ }
     }
+  }
+}
+
+/**
+ * Broadcast a file event only to clients whose subscription covers `relPath`.
+ * Clients with subscribedPaths === null get every event (opt-out scoping).
+ */
+export function broadcastFileEvent(message: WsMessage, relPath: string) {
+  const payload = JSON.stringify(message);
+  for (const client of connectedClients) {
+    if (client.ws.readyState !== WebSocket.OPEN) continue;
+    const paths = client.subscribedPaths;
+    if (paths !== null && !paths.some(prefix => relPath === prefix || relPath.startsWith(prefix + '/') || relPath.startsWith(prefix + '\\'))) {
+      continue;
+    }
+    try { client.ws.send(payload); } catch { /* dead socket */ }
   }
 }
 
@@ -63,6 +86,7 @@ export default async function wsHandler(fastify: FastifyInstance) {
       username: auth.username,
       terminalListeners: new Map(),
       claudeListeners: new Map(),
+      subscribedPaths: null, // Default: receive all file events (backwards compat)
     };
 
     connectedClients.add(client);
@@ -131,17 +155,22 @@ async function handleMessage(
         const cwd = data?.cwd || '/';
         const cols = data?.cols || 80;
         const rows = data?.rows || 24;
-        const terminal = createTerminal(cwd, cols, rows, client.userId);
-        const listener = (output: string) => {
-          send({ channel: `terminal:${terminal.session.id}`, type: 'output', data: output });
-        };
-        addTerminalListener(terminal.session.id, listener);
-        client.terminalListeners.set(terminal.session.id, listener);
-        send({ channel: 'terminal', type: 'created', data: terminal.session });
+        try {
+          const terminal = createTerminal(cwd, cols, rows, client.userId);
+          const listener = (output: string) => {
+            send({ channel: `terminal:${terminal.session.id}`, type: 'output', data: output });
+          };
+          addTerminalListener(terminal.session.id, listener);
+          client.terminalListeners.set(terminal.session.id, listener);
+          send({ channel: 'terminal', type: 'created', data: terminal.session });
+        } catch (err: any) {
+          send({ channel: 'terminal', type: 'error', data: err?.message || 'Failed to create terminal' });
+        }
         break;
       }
       case 'list': {
-        send({ channel: 'terminal', type: 'list', data: listTerminals() });
+        // Scope list to the current user — never leak other users' terminal ids.
+        send({ channel: 'terminal', type: 'list', data: listTerminals(client.userId) });
         break;
       }
       case 'destroy': {
@@ -202,8 +231,25 @@ async function handleMessage(
 
   // --- File watch subscription ---
   if (channel === 'files') {
-    // File events are broadcast from the watcher, no client input needed
-    // Could add subscribe/unsubscribe for specific paths here
+    switch (type) {
+      case 'subscribe': {
+        // Opt-in to path-scoped file events. After subscribing, the client only
+        // receives events whose relPath starts with one of the given prefixes.
+        // Accepts either { path: "..." } or { paths: ["...", "..."] }.
+        const paths: string[] = Array.isArray(data?.paths)
+          ? data.paths.filter((p: any) => typeof p === 'string')
+          : typeof data?.path === 'string' ? [data.path] : [];
+        // Normalize: strip leading slashes so comparison matches relativePath() output.
+        client.subscribedPaths = paths.map((p: string) => p.replace(/^[/\\]+/, ''));
+        send({ channel: 'files', type: 'subscribed', data: { paths: client.subscribedPaths } });
+        break;
+      }
+      case 'unsubscribe': {
+        client.subscribedPaths = null;
+        send({ channel: 'files', type: 'unsubscribed' });
+        break;
+      }
+    }
     return;
   }
 

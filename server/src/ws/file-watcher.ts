@@ -1,11 +1,24 @@
 import { watch } from 'chokidar';
+import { basename } from 'path';
 import { config } from '../config.js';
 import { relativePath } from '../utils/path-guard.js';
-import { broadcastToAll } from './handler.js';
+import { broadcastFileEvent } from './handler.js';
 import type { WsMessage } from '../utils/types.js';
 
 let watcher: ReturnType<typeof watch> | null = null;
 let debounceTimers = new Map<string, NodeJS.Timeout>();
+
+/**
+ * Defense-in-depth filter for sensitive filenames. Chokidar already ignores
+ * dotfiles via the `ignored` pattern, but if that config ever changes we still
+ * want to stop secret filenames from leaking into file events.
+ */
+function isSensitiveBasename(name: string): boolean {
+  const lower = name.toLowerCase();
+  if (lower === '.env' || lower.startsWith('.env.')) return true;
+  if (['.git', '.ssh', '.aws', '.gnupg', '.npmrc', '.netrc'].includes(lower)) return true;
+  return false;
+}
 
 export function startFileWatcher() {
   if (watcher) return;
@@ -39,13 +52,21 @@ export function startFileWatcher() {
     debounceTimers.set(key, setTimeout(() => {
       debounceTimers.delete(key);
       try {
+        // Skip sensitive basenames even though chokidar's ignore pattern should
+        // already block them (defense in depth).
+        if (isSensitiveBasename(basename(filePath))) return;
         const relPath = relativePath(filePath);
+        // Also block events whose relative path contains a sensitive segment.
+        const segments = relPath.split(/[/\\]/);
+        if (segments.some(isSensitiveBasename)) return;
         const msg: WsMessage = {
           channel: 'files',
           type: eventType,
           data: { path: relPath },
         };
-        broadcastToAll(msg);
+        // broadcastFileEvent respects per-client subscribedPaths, so clients
+        // that opted into scoping only receive events under their prefix.
+        broadcastFileEvent(msg, relPath);
       } catch {
         // Path might be outside workspace (race condition), ignore
       }

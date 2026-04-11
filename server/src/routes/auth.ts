@@ -63,6 +63,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
   // POST /auth/refresh
   fastify.post('/auth/refresh', {
+    config: {
+      // Rate limit: prevent abuse of a stolen refresh token to generate unlimited JWTs.
+      // Same window as login by default (5 attempts / 5 minutes).
+      rateLimit: {
+        max: config.rateLimit.loginMax,
+        timeWindow: config.rateLimit.loginWindow,
+      },
+    },
     schema: {
       body: {
         type: 'object',
