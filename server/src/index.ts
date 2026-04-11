@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import Fastify from 'fastify';
+import Fastify, { type FastifyError } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyCors from '@fastify/cors';
 import fastifyMultipart from '@fastify/multipart';
@@ -57,12 +57,12 @@ await fastify.register(authPlugin);
 await fastify.register(fastifyWebsocket);
 
 // --- Error handler ---
-fastify.setErrorHandler((error, request, reply) => {
+fastify.setErrorHandler((error: FastifyError, request, reply) => {
   if (error instanceof PathTraversalError) {
     return reply.status(403).send({ success: false, error: 'Access denied: path outside workspace' });
   }
   fastify.log.error(error);
-  reply.status(error.statusCode || 500).send({
+  reply.status(error.statusCode ?? 500).send({
     success: false,
     error: error.message || 'Internal server error',
   });

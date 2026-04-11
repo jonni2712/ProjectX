@@ -9,7 +9,11 @@ const dataDir = resolve(import.meta.dirname || '.', '../../data');
 mkdirSync(dataDir, { recursive: true });
 
 const dbPath = resolve(dataDir, 'projectx.db');
-export const db = new Database(dbPath);
+// Explicit annotation is required because `db` is re-exported and TypeScript
+// otherwise fails to emit a declaration ("BetterSqlite3.Database cannot be
+// named"). The Database import is both a class and a namespace — we want
+// the instance type.
+export const db: Database.Database = new Database(dbPath);
 
 // Enable WAL mode for better concurrency
 db.pragma('journal_mode = WAL');

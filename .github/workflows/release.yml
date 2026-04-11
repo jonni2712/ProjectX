@@ -16,9 +16,9 @@ jobs:
         os: [windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -71,7 +71,7 @@ jobs:
 
       # Upload artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ matrix.os }}
           path: |
@@ -82,7 +82,7 @@ jobs:
   build-mobile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@v2
         with:
@@ -95,7 +95,7 @@ jobs:
           flutter build apk --release
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flutter-apk
           path: flutter_app/build/app/outputs/flutter-apk/app-release.apk

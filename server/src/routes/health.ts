@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
 import { getTunnelStatus, startTunnel, stopTunnel } from '../services/tunnel.service.js';
 
@@ -48,10 +48,8 @@ export default async function healthRoutes(fastify: FastifyInstance) {
         },
       },
     },
-  }, async (request: FastifyRequest<{
-    Body: { workspaceRoot?: string; port?: number; host?: string }
-  }>) => {
-    const { workspaceRoot, port, host } = request.body;
+  }, async (request) => {
+    const { workspaceRoot, port, host } = request.body as { workspaceRoot?: string; port?: number; host?: string };
     const { writeFileSync, readFileSync, existsSync } = await import('fs');
     const { resolve } = await import('path');
     const envPath = resolve(import.meta.dirname || '.', '../../.env');
