@@ -1,0 +1,40 @@
+// Syncthing ignore rules for the ProjectX project folder.
+// Prevents native binaries, build artifacts, and generated state from being
+// synced between machines — syncing them causes architecture mismatches
+// (e.g. macOS arm64 .node files landing on a Windows x64 host) and race
+// conditions that silently overwrite working files.
+//
+// Format: see https://docs.syncthing.net/users/ignoring.html
+
+// Node dependencies — must be installed per-machine
+**/node_modules
+
+// Build / dist outputs — regenerated per-machine
+**/dist
+**/dist-electron
+**/build
+**/release
+**/.next
+
+// Native / platform caches
+**/.gradle
+**/.dart_tool
+**/.pub-cache
+
+// Runtime data (databases, logs, tunnel pid files)
+server/data
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+
+// OS and editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+// Secrets — never sync these between machines
+**/.env
+**/.env.local
+**/.env.*.local
