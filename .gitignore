@@ -38,3 +38,10 @@ key.properties
 # System
 Thumbs.db
 .claude/
+
+# IDE / workspace (local-only)
+.idea/
+.claude/
+.playwright-mcp/
+firebase-debug.log
+.DS_Store
