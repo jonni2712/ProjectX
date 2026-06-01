@@ -34,7 +34,7 @@ ProjectX turns your desktop PC into a full remote development server that you co
 
 - **Server** — Fastify backend that runs on your PC, managing your files, terminals, and Git repos
 - **Desktop App** — Electron dashboard to configure the server, manage users, and monitor activity
-- **Mobile App** — Flutter client for Android with file browser, code editor, terminal, Git, and Claude AI
+- **Mobile App** — Flutter client for Android: multi-server (save several servers, switch between them), QR pairing, onboarding, file browser, code editor, terminal, Git, and Claude AI
 
 ---
 
@@ -65,7 +65,11 @@ On first launch, the setup wizard guides you through:
 
 ### 3. Connect from Your Phone
 
-Install the APK on your Android device. Enter the server URL shown in the dashboard (or scan the QR code) and log in.
+Install the APK on your Android device. Open the dashboard's **Remote** page and
+**scan the pairing QR** with the app (or enter the server URL manually). The app
+remembers multiple servers, so you can switch between machines. If your phone
+isn't on the same network, enable a **quick tunnel** from the Remote page first —
+the QR will encode the public URL.
 
 That's it. You're now coding remotely.
 
@@ -91,8 +95,17 @@ Automatic repository discovery across your workspace. View status, stage changes
 ### User Management
 Multi-user system with roles (admin/user). JWT authentication with refresh tokens. Password management. Biometric unlock on mobile. Rate limiting and audit logging.
 
-### Cloudflare Tunnel
-Access your server from anywhere without exposing ports. Built-in tunnel management — start, stop, and configure directly from the dashboard. HTTPS and WSS encryption. No static IP or port forwarding required.
+### Remote Access (Cloudflare Tunnel)
+Access your server from anywhere without exposing ports or owning a static IP.
+`cloudflared` is **auto-installed** on first use, and you drive it from the
+dashboard's **Remote** page:
+- **Quick tunnel** — one click, zero config: an ephemeral `*.trycloudflare.com`
+  URL, no Cloudflare account or credentials required.
+- **Named tunnel** — a persistent URL on *your* domain: created via the
+  Cloudflare API (tunnel + ingress + DNS record) from an API token.
+
+HTTPS/WSS encryption, outbound-only connection, optional SHA-256 pinning of the
+`cloudflared` binary, and automatic cleanup/resume across restarts.
 
 ### Auto-Updates
 The desktop app checks GitHub Releases for updates and installs them automatically. Ship a new version with a single `git tag`.
