@@ -5,6 +5,17 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Desktop app 1.1.10 - 2026-06-01
+
+### Fixed
+- **Windows installer froze on the "install for all users / just me" page**,
+  especially when launched with *Run as administrator*. The NSIS installer ran
+  in assisted mode (`oneClick:false`, no `perMachine`), so it showed the
+  per-machine/per-user choice and tried to manage UAC elevation — which
+  deadlocks when the process is already elevated. Pinned the install scope to
+  **current user only** (`perMachine:false`, `allowElevation:false`): no scope
+  page, no UAC prompt, no freeze. Installs under the user's `%LOCALAPPDATA%`.
+
 ## Desktop app 1.1.2 - 2026-06-01
 
 ### Fixed
