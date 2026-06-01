@@ -34,11 +34,11 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 
 | File | Modifica | Complessità |
 |------|----------|-------------|
-| `server/src/setup.ts` | Riscrivere come wizard cross-platform (inquirer/prompts) | L |
+| `server/src/setup.ts` | ✅ FATTO (v1.1.2) - Wizard CLI interattivo: workspace/rete/admin/JWT, input password nascosto, scrive config.json + seed admin nel DB, reconfigure preserva il JWT secret | L |
 | `server/src/config-store.ts` | ✅ FATTO (v1.1.1) - Config JSON (`data/config.json`), precedenza env > json > default, migrazione automatica al primo avvio | M |
 | `server/src/routes/setup.ts` | **NUOVO** - Web UI per setup al primo avvio | L |
 | `server/src/services/cloudflare.service.ts` | **NUOVO** - Auto-install cloudflared, crea tunnel via API | L |
-| `setup.sh` / `setup.bat` / `setup.ps1` | Script cross-platform che lancia il wizard | M |
+| `setup.sh` | ✅ FATTO (v1.1.2) - delega a `npm run setup`, legge i valori da config.json. `setup.bat`/`setup.ps1` (Windows) ancora TODO | M |
 
 ### Cloudflare Integration
 - Detect/install cloudflared

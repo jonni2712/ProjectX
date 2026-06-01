@@ -59,85 +59,41 @@ else
   echo -e "${GREEN}  ✓ Server dependencies already installed${NC}"
 fi
 
-# --- Step 3: Configure .env ---
+# --- Step 3: Configure (interactive wizard) ---
 echo ""
-echo -e "${YELLOW}[3/6] Configuring environment...${NC}"
+echo -e "${YELLOW}[3/6] Configuring server...${NC}"
 
-if [ ! -f ".env" ]; then
-  cp .env.example .env
-
-  # Ask for workspace root
-  echo ""
-  read -p "  Workspace root path [/github]: " WORKSPACE_ROOT
-  WORKSPACE_ROOT=${WORKSPACE_ROOT:-/github}
-
-  # Validate it exists
-  if [ ! -d "$WORKSPACE_ROOT" ]; then
-    echo -e "${RED}  ✗ Directory does not exist: $WORKSPACE_ROOT${NC}"
-    echo "  Create it or enter a valid path."
-    exit 1
-  fi
-
-  # Ask for credentials
-  read -p "  Admin username [admin]: " USERNAME
-  USERNAME=${USERNAME:-admin}
-
-  read -sp "  Admin password: " PASSWORD
-  echo ""
-
-  if [ -z "$PASSWORD" ]; then
-    echo -e "${RED}  ✗ Password is required${NC}"
-    exit 1
-  fi
-
-  # Generate password hash
-  HASH=$(node -e "
-    const bcrypt = require('bcrypt');
-    bcrypt.hash('$PASSWORD', 12).then(h => process.stdout.write(h));
-  ")
-
-  # Generate JWT secret
-  JWT_SECRET=$(openssl rand -hex 32)
-
-  # Write .env
-  sed -i.bak "s|WORKSPACE_ROOT=.*|WORKSPACE_ROOT=$WORKSPACE_ROOT|" .env
-  sed -i.bak "s|AUTH_USERNAME=.*|AUTH_USERNAME=$USERNAME|" .env
-  sed -i.bak "s|AUTH_PASSWORD_HASH=.*|AUTH_PASSWORD_HASH=$HASH|" .env
-  sed -i.bak "s|JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|" .env
-  rm -f .env.bak
-
-  # Ask for Anthropic API key (optional)
-  echo ""
-  read -p "  Anthropic API key (optional, press Enter to skip): " API_KEY
-  if [ -n "$API_KEY" ]; then
-    sed -i.bak "s|ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$API_KEY|" .env
-    rm -f .env.bak
-  fi
-
-  echo -e "${GREEN}  ✓ Environment configured${NC}"
+CONFIG_FILE="data/config.json"
+if [ ! -f "$CONFIG_FILE" ]; then
+  # Delegate to the cross-platform setup wizard (server/src/setup.ts): it
+  # collects workspace, network, admin account and Anthropic key, writes
+  # data/config.json (0600 perms) and seeds the admin user in the database.
+  npm run setup
 else
-  echo -e "${GREEN}  ✓ .env already exists${NC}"
+  echo -e "${GREEN}  ✓ Configuration already exists ($CONFIG_FILE)${NC}"
+  echo -e "    Re-run 'cd server && npm run setup' to reconfigure."
 fi
 
-# --- Step 4: Verify setup ---
-echo ""
-echo -e "${YELLOW}[4/6] Verifying configuration...${NC}"
-
-source .env 2>/dev/null || true
-
-if [ -z "$AUTH_PASSWORD_HASH" ] || [ "$AUTH_PASSWORD_HASH" = "" ]; then
-  echo -e "${RED}  ✗ AUTH_PASSWORD_HASH not set in .env${NC}"
-  echo "  Run: cd server && npm run setup"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo -e "${RED}  ✗ Configuration was not created. Aborting.${NC}"
   exit 1
 fi
 
+# --- Step 4: Verify configuration ---
+echo ""
+echo -e "${YELLOW}[4/6] Verifying configuration...${NC}"
+
+# Read the effective values back from config.json for the steps below.
+WORKSPACE_ROOT=$(node -e "process.stdout.write(String(require('./$CONFIG_FILE').workspaceRoot||''))")
+PORT=$(node -e "process.stdout.write(String(require('./$CONFIG_FILE').port||3000))")
+
 if [ ! -d "$WORKSPACE_ROOT" ]; then
-  echo -e "${RED}  ✗ WORKSPACE_ROOT does not exist: $WORKSPACE_ROOT${NC}"
+  echo -e "${RED}  ✗ Workspace root does not exist: $WORKSPACE_ROOT${NC}"
   exit 1
 fi
 
 echo -e "${GREEN}  ✓ Workspace root: $WORKSPACE_ROOT${NC}"
-echo -e "${GREEN}  ✓ Auth configured for: ${AUTH_USERNAME:-admin}${NC}"
+echo -e "${GREEN}  ✓ Admin account configured in database${NC}"
 
 # --- Step 5: Get network info ---
 echo ""

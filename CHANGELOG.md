@@ -5,6 +5,23 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-06-01
+
+### Added
+- **Interactive setup wizard** (`server/src/setup.ts`, `npm run setup`): a full
+  cross-platform first-run wizard that collects workspace root, port/host, CORS
+  origins and Anthropic API key, creates the admin account, and generates a
+  strong JWT secret. It writes everything to `data/config.json` and seeds the
+  admin user directly in the database. Password and API-key input are hidden,
+  the password policy mirrors the server, and re-running it reconfigures safely
+  (the existing JWT secret is preserved so live sessions survive).
+
+### Changed
+- `setup.sh` now delegates configuration to the wizard (`npm run setup`) and
+  reads effective values back from `data/config.json`, instead of hand-writing
+  a `.env` file in bash.
+- README "Development Setup" recommends `npm run setup` over editing `.env`.
+
 ## [1.1.1] - 2026-06-01
 
 ### Added
@@ -36,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation hardening, optional SHA256 pin for the `cloudflared` binary, protection
   of Syncthing markers and system files from deletion.
 
+[1.1.2]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.2
 [1.1.1]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.0

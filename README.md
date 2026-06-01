@@ -189,9 +189,12 @@ ProjectX/
 ```bash
 cd server
 npm install
-cp .env.example .env    # Edit with your settings
+npm run setup           # Interactive wizard: writes data/config.json + admin account
 npm run dev             # http://localhost:3000
 ```
+> `npm run setup` is the recommended path — it generates a strong JWT secret,
+> creates the admin user and writes `data/config.json`. Setting values via a
+> `.env` file (see `.env.example`) still works and overrides `config.json`.
 
 ### Desktop App
 ```bash
