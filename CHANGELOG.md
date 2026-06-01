@@ -5,6 +5,22 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-06-01
+
+### Added
+- **First-run web setup** (`server/src/setup-server.ts`): when the server has no
+  `data/config.json` and no `JWT_SECRET` in the environment, it now boots a
+  minimal browser-based setup page instead of refusing to start. The user fills
+  in workspace root, admin account (and optional public origins / Anthropic
+  key); the server generates a strong JWT secret, writes `config.json`, seeds
+  the admin user, and **hands off to the real server on the same port** — no
+  terminal required. This is the "install and go" path for the desktop app.
+
+### Changed
+- `index.ts` is now a thin bootstrap that picks setup mode vs normal boot; the
+  full server moved to `app.ts` (imported dynamically only once configured, so
+  config.ts validation never blocks the setup UI).
+
 ## [1.1.4] - 2026-06-01
 
 ### Added
@@ -115,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation hardening, optional SHA256 pin for the `cloudflared` binary, protection
   of Syncthing markers and system files from deletion.
 
+[1.1.5]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.5
 [1.1.4]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.4
 [1.1.3]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.3
 [1.1.2]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.2

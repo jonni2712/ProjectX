@@ -189,12 +189,16 @@ ProjectX/
 ```bash
 cd server
 npm install
-npm run setup           # Interactive wizard: writes data/config.json + admin account
+npm run setup           # (optional) interactive wizard: writes data/config.json + admin
 npm run dev             # http://localhost:3000
 ```
-> `npm run setup` is the recommended path — it generates a strong JWT secret,
-> creates the admin user and writes `data/config.json`. Setting values via a
-> `.env` file (see `.env.example`) still works and overrides `config.json`.
+> Three ways to configure the server, in order of convenience:
+> - **Web setup** — just start the server unconfigured and open it in a browser;
+>   a first-run setup page lets you create the admin account and finish setup,
+>   then hands off to the running server. No terminal needed (desktop path).
+> - **`npm run setup`** — interactive CLI wizard.
+> - **`.env`** — set values manually (see `.env.example`); env always overrides
+>   `data/config.json`.
 
 ### Run with Docker
 ```bash

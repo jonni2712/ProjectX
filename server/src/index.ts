@@ -1,116 +1,25 @@
 import 'dotenv/config';
-import Fastify, { type FastifyError } from 'fastify';
-import fastifyWebsocket from '@fastify/websocket';
-import fastifyCors from '@fastify/cors';
-import fastifyMultipart from '@fastify/multipart';
-import fastifyRateLimit from '@fastify/rate-limit';
-import { config, isOriginAllowed } from './config.js';
-import authPlugin from './plugins/auth.js';
-import healthRoutes from './routes/health.js';
-import authRoutes from './routes/auth.js';
-import fileRoutes from './routes/files.js';
-import gitRoutes from './routes/git.js';
-import projectRoutes from './routes/projects.js';
-import cloudflareRoutes from './routes/cloudflare.js';
-import wsHandler from './ws/handler.js';
-import { startFileWatcher, stopFileWatcher } from './ws/file-watcher.js';
-import { destroyAllTerminals } from './services/terminal.service.js';
-import { killOrphanTunnel } from './services/tunnel.service.js';
-import { killOrphanCloudflare, resumeTunnel } from './services/cloudflare.service.js';
-import { cleanExpiredLocks, cleanExpiredRefreshTokens } from './db/database.js';
-import { PathTraversalError } from './utils/path-guard.js';
+import { configFileExists } from './config-store.js';
 
-const fastify = Fastify({
-  logger: {
-    level: 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
-    },
-  },
-});
+// Bootstrap. On a fresh install with no data/config.json and no JWT_SECRET in
+// the environment, the main app can't even start (config.ts refuses to boot
+// without a strong secret). Instead of failing, we launch a minimal web setup
+// server so the user can configure everything from a browser — no terminal
+// required (the desktop "install and go" path). Once configured it hands off
+// to the real server.
+//
+// When config.json exists, or JWT_SECRET is provided via env (Docker / CI /
+// .env deployments), we skip setup mode and start the server normally.
+async function boot(): Promise<void> {
+  const hasEnvSecret = !!(process.env.JWT_SECRET && process.env.JWT_SECRET.length > 0);
+  const needsSetup = !configFileExists() && !hasEnvSecret;
 
-// --- Plugins ---
-// CORS uses the shared isOriginAllowed() from config.ts. Wildcard HTTPS is
-// intentionally NOT accepted — that would let any attacker site make
-// credentialed requests from a victim's browser.
-await fastify.register(fastifyCors, {
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) return callback(null, true);
-    callback(new Error('CORS not allowed'), false);
-  },
-  // JWT is carried in Authorization header, not cookies, so credentials can be off.
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  preflight: true,
-  strictPreflight: false,
-});
-
-await fastify.register(fastifyRateLimit, {
-  global: false, // Only apply where configured
-});
-
-await fastify.register(fastifyMultipart, {
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB upload limit
-});
-
-await fastify.register(authPlugin);
-await fastify.register(fastifyWebsocket);
-
-// --- Error handler ---
-fastify.setErrorHandler((error: FastifyError, request, reply) => {
-  if (error instanceof PathTraversalError) {
-    return reply.status(403).send({ success: false, error: 'Access denied: path outside workspace' });
+  if (needsSetup) {
+    const { runSetupServer } = await import('./setup-server.js');
+    await runSetupServer();
+  } else {
+    await import('./app.js');
   }
-  fastify.log.error(error);
-  reply.status(error.statusCode ?? 500).send({
-    success: false,
-    error: error.message || 'Internal server error',
-  });
-});
-
-// --- Routes ---
-await fastify.register(healthRoutes);
-await fastify.register(authRoutes);
-await fastify.register(fileRoutes);
-await fastify.register(gitRoutes);
-await fastify.register(projectRoutes);
-await fastify.register(cloudflareRoutes);
-await fastify.register(wsHandler);
-
-// --- Periodic cleanup ---
-setInterval(() => {
-  cleanExpiredLocks();
-  cleanExpiredRefreshTokens();
-}, 5 * 60 * 1000); // Every 5 minutes
-
-// --- Startup ---
-try {
-  // Clean up any cloudflared tunnel left running by a previous (crashed) server.
-  // Otherwise the public hostname stays alive pointing at a dead process.
-  killOrphanTunnel();
-  killOrphanCloudflare();
-
-  await fastify.listen({ port: config.port, host: config.host });
-  startFileWatcher();
-  // Resume a previously-running named tunnel (best-effort, non-blocking).
-  void resumeTunnel();
-  console.log(`\n  ProjectX Server running at http://${config.host}:${config.port}`);
-  console.log(`  Workspace root: ${config.workspaceRoot}\n`);
-} catch (err) {
-  fastify.log.error(err);
-  process.exit(1);
 }
 
-// --- Graceful shutdown ---
-const shutdown = async () => {
-  console.log('\nShutting down...');
-  stopFileWatcher();
-  destroyAllTerminals();
-  await fastify.close();
-  process.exit(0);
-};
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+boot();

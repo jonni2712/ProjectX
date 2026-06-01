@@ -36,7 +36,7 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 |------|----------|-------------|
 | `server/src/setup.ts` | ✅ FATTO (v1.1.2) - Wizard CLI interattivo: workspace/rete/admin/JWT, input password nascosto, scrive config.json + seed admin nel DB, reconfigure preserva il JWT secret | L |
 | `server/src/config-store.ts` | ✅ FATTO (v1.1.1) - Config JSON (`data/config.json`), precedenza env > json > default, migrazione automatica al primo avvio | M |
-| `server/src/routes/setup.ts` | **NUOVO** - Web UI per setup al primo avvio | L |
+| `server/src/setup-server.ts` (+ `index.ts` bootstrap, `app.ts`) | ✅ FATTO (v1.1.5) - Web UI setup al primo avvio: boota in setup-mode se manca config, scrive config.json + seed admin, handoff al server reale sulla stessa porta | L |
 | `server/src/services/cloudflare.service.ts` | ✅ FATTO (v1.1.4) - Auto-install cloudflared + quick tunnel (zero-config) + named tunnel via API (+ rotte `routes/cloudflare.ts`) | L |
 | `setup.sh` | ✅ FATTO (v1.1.2) - delega a `npm run setup`, legge i valori da config.json. `setup.bat`/`setup.ps1` (Windows) ancora TODO | M |
 
