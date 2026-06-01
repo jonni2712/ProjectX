@@ -11,10 +11,12 @@ import authRoutes from './routes/auth.js';
 import fileRoutes from './routes/files.js';
 import gitRoutes from './routes/git.js';
 import projectRoutes from './routes/projects.js';
+import cloudflareRoutes from './routes/cloudflare.js';
 import wsHandler from './ws/handler.js';
 import { startFileWatcher, stopFileWatcher } from './ws/file-watcher.js';
 import { destroyAllTerminals } from './services/terminal.service.js';
 import { killOrphanTunnel } from './services/tunnel.service.js';
+import { killOrphanCloudflare, resumeTunnel } from './services/cloudflare.service.js';
 import { cleanExpiredLocks, cleanExpiredRefreshTokens } from './db/database.js';
 import { PathTraversalError } from './utils/path-guard.js';
 
@@ -74,6 +76,7 @@ await fastify.register(authRoutes);
 await fastify.register(fileRoutes);
 await fastify.register(gitRoutes);
 await fastify.register(projectRoutes);
+await fastify.register(cloudflareRoutes);
 await fastify.register(wsHandler);
 
 // --- Periodic cleanup ---
@@ -87,9 +90,12 @@ try {
   // Clean up any cloudflared tunnel left running by a previous (crashed) server.
   // Otherwise the public hostname stays alive pointing at a dead process.
   killOrphanTunnel();
+  killOrphanCloudflare();
 
   await fastify.listen({ port: config.port, host: config.host });
   startFileWatcher();
+  // Resume a previously-running named tunnel (best-effort, non-blocking).
+  void resumeTunnel();
   console.log(`\n  ProjectX Server running at http://${config.host}:${config.port}`);
   console.log(`  Workspace root: ${config.workspaceRoot}\n`);
 } catch (err) {

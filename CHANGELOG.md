@@ -5,6 +5,27 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-06-01
+
+### Added
+- **Automated Cloudflare tunnels** (`server/src/services/cloudflare.service.ts`
+  + `routes/cloudflare.ts`) — the remote-access gap closer:
+  - **Auto-install**: downloads the correct `cloudflared` binary for the host
+    OS/arch into `~/.projectx/bin` when it isn't already on PATH (macOS `.tgz`
+    extracted via `tar`).
+  - **Quick tunnel** (`POST /cloudflare/quick-start`): zero-config
+    `*.trycloudflare.com` URL — no Cloudflare account needed.
+  - **Named tunnel** (`POST /cloudflare/named-start`): creates a tunnel via the
+    Cloudflare API, pushes the ingress config, creates/updates the DNS CNAME,
+    and runs the connector with `--token` — a persistent custom-domain URL.
+  - Status (`GET /cloudflare/status`), stop, and explicit install endpoints
+    (admin-only); PID tracking with orphan cleanup and named-tunnel resume on
+    restart. Honours the existing `cloudflaredExpectedHashes` supply-chain pin.
+
+### Notes
+- Pure helpers (asset selection, URL parsing) are tested; a live public tunnel
+  was not opened from the build host. Verify with `POST /cloudflare/quick-start`.
+
 ## Mobile app 1.0.1 - 2026-06-01
 
 ### Added
@@ -94,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation hardening, optional SHA256 pin for the `cloudflared` binary, protection
   of Syncthing markers and system files from deletion.
 
+[1.1.4]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.4
 [1.1.3]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.3
 [1.1.2]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.2
 [1.1.1]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.1
