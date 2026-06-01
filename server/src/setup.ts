@@ -72,7 +72,121 @@ function parseOrigins(raw: string): string[] {
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
+// First non-empty value among the given environment variable names.
+function envStr(...keys: string[]): string | undefined {
+  for (const k of keys) {
+    const v = process.env[k];
+    if (v !== undefined && v !== '') return v;
+  }
+  return undefined;
+}
+
+// Run without prompts when there is no TTY (Docker / CI), or when explicitly
+// requested. In that mode every value comes from the environment.
+function isNonInteractive(): boolean {
+  if (process.argv.includes('--non-interactive') || process.argv.includes('--ci')) return true;
+  const flag = process.env.PROJECTX_NONINTERACTIVE;
+  if (flag && flag !== '0' && flag.toLowerCase() !== 'false') return true;
+  return !process.stdin.isTTY;
+}
+
+// Non-interactive setup, driven entirely by environment variables. Used by the
+// Docker image and CI. Recognised vars (PROJECTX_* take precedence):
+//   PROJECTX_WORKSPACE_ROOT / WORKSPACE_ROOT   (default ~/projectx-workspace)
+//   PROJECTX_PORT / PORT                       (default 3000)
+//   PROJECTX_HOST / HOST                       (default 0.0.0.0 — containers expose externally)
+//   PROJECTX_PUBLIC_ORIGINS / PUBLIC_ORIGINS   (comma-separated)
+//   PROJECTX_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY
+//   JWT_SECRET                                 (generated if missing/weak)
+//   PROJECTX_ADMIN_USERNAME / AUTH_USERNAME    (default admin)
+//   PROJECTX_ADMIN_PASSWORD                    (plaintext, hashed here) OR AUTH_PASSWORD_HASH
+async function runNonInteractive(): Promise<void> {
+  const existing: StoredConfig = configFileExists() ? loadStoredConfig() : {};
+
+  const workspaceRoot = resolve(
+    envStr('PROJECTX_WORKSPACE_ROOT', 'WORKSPACE_ROOT') || existing.workspaceRoot || resolve(homedir(), 'projectx-workspace')
+  );
+  if (!existsSync(workspaceRoot)) {
+    mkdirSync(workspaceRoot, { recursive: true });
+    console.log(`[setup] Created workspace root ${workspaceRoot}`);
+  }
+
+  const port = parseInt(envStr('PROJECTX_PORT', 'PORT') || String(existing.port ?? 3000), 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error(`[setup] Invalid port: ${port}`);
+    process.exit(1);
+  }
+  const host = envStr('PROJECTX_HOST', 'HOST') || existing.host || '0.0.0.0';
+  const originsRaw = envStr('PROJECTX_PUBLIC_ORIGINS', 'PUBLIC_ORIGINS');
+  const publicOrigins = originsRaw !== undefined ? parseOrigins(originsRaw) : (existing.publicOrigins ?? []);
+  const anthropicApiKey = envStr('PROJECTX_ANTHROPIC_API_KEY', 'ANTHROPIC_API_KEY') || existing.anthropicApiKey || '';
+
+  const jwtFromEnv = envStr('JWT_SECRET');
+  const jwtSecret =
+    jwtFromEnv && jwtFromEnv.length >= 32 ? jwtFromEnv
+    : existing.jwt?.secret && existing.jwt.secret.length >= 32 ? existing.jwt.secret
+    : randomBytes(32).toString('hex');
+
+  const stored: StoredConfig = {
+    port,
+    host,
+    workspaceRoot,
+    jwt: {
+      secret: jwtSecret,
+      expiresIn: existing.jwt?.expiresIn || '24h',
+      refreshExpiresIn: existing.jwt?.refreshExpiresIn || '7d',
+    },
+    anthropicApiKey,
+    rateLimit: {
+      loginMax: existing.rateLimit?.loginMax ?? 5,
+      loginWindow: existing.rateLimit?.loginWindow ?? 300000,
+    },
+    watcherDebounce: existing.watcherDebounce ?? 500,
+    publicOrigins,
+    cloudflaredExpectedHashes: existing.cloudflaredExpectedHashes ?? [],
+  };
+  saveStoredConfig(stored);
+  console.log(`[setup] Wrote configuration to ${CONFIG_PATH}`);
+
+  // Resolve the admin password: plaintext (hashed here) or a pre-computed hash.
+  const username = envStr('PROJECTX_ADMIN_USERNAME', 'AUTH_USERNAME') || 'admin';
+  const passwordPlain = envStr('PROJECTX_ADMIN_PASSWORD');
+  let passwordHash = envStr('AUTH_PASSWORD_HASH');
+  if (passwordPlain) {
+    const problem = passwordProblem(passwordPlain);
+    if (problem) {
+      console.error(`[setup] PROJECTX_ADMIN_PASSWORD ${problem}.`);
+      process.exit(1);
+    }
+    passwordHash = await bcrypt.hash(passwordPlain, 12);
+  }
+
+  const { getUserByUsername, createUser, updateUser } = await import('./db/database.js');
+  const existingUser = getUserByUsername(username);
+  if (existingUser) {
+    if (passwordHash) {
+      updateUser(existingUser.id, { password_hash: passwordHash, role: 'admin', active: 1 });
+      console.log(`[setup] Updated admin user "${username}".`);
+    } else {
+      console.log(`[setup] Admin user "${username}" already exists; no password provided, left unchanged.`);
+    }
+  } else if (passwordHash) {
+    createUser(randomUUID(), username, passwordHash, 'admin');
+    console.log(`[setup] Created admin user "${username}".`);
+  } else {
+    console.error('[setup] No admin user exists and neither PROJECTX_ADMIN_PASSWORD nor AUTH_PASSWORD_HASH was provided — cannot create admin.');
+    process.exit(1);
+  }
+  console.log('[setup] Non-interactive setup complete.');
+}
+
 async function main(): Promise<void> {
+  if (isNonInteractive()) {
+    await runNonInteractive();
+    rl.close();
+    return;
+  }
+
   console.log('\n  ProjectX Server Setup\n  =====================\n');
 
   const reconfiguring = configFileExists();

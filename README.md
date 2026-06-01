@@ -196,6 +196,16 @@ npm run dev             # http://localhost:3000
 > creates the admin user and writes `data/config.json`. Setting values via a
 > `.env` file (see `.env.example`) still works and overrides `config.json`.
 
+### Run with Docker
+```bash
+cp .env.docker.example .env     # then set PROJECTX_ADMIN_PASSWORD
+docker compose up -d            # server on http://localhost:3000
+```
+The container runs the non-interactive setup on first boot (generating the JWT
+secret and seeding the admin user), then starts the server. Configuration and
+the database persist in the `projectx-data` volume; your repositories live in
+the host directory bound to `/workspace` (`./workspace` by default).
+
 ### Desktop App
 ```bash
 cd desktop

@@ -84,7 +84,7 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 | `LICENSE` | Apache 2.0 | S |
 | `CONTRIBUTING.md` | Linee guida contribuzione | S |
 | `.github/` | Issue templates, PR template, CI workflows | M |
-| `server/Dockerfile` + `docker-compose.yml` | Docker support | M |
+| `server/Dockerfile` + `docker-compose.yml` | ✅ FATTO (v1.1.3) - multi-stage + entrypoint che lancia setup non-interattivo al primo avvio; setup.ts supporta modalità `--non-interactive` (env-driven) | M |
 | `install.sh` / `install.ps1` | One-click install | M |
 | `.github/workflows/ci.yml` | Build + test + lint | M |
 | `.github/workflows/release.yml` | Auto-release APK + Docker image | M |

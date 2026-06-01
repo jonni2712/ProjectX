@@ -5,6 +5,24 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-06-01
+
+### Added
+- **Docker support**: multi-stage `server/Dockerfile` (compiles the native
+  modules — better-sqlite3, node-pty, bcrypt — then ships a slim runtime with
+  `git` and `tini`), `docker-compose.yml`, `.env.docker.example` and a
+  `docker-entrypoint.sh` that runs first-run setup automatically. `docker
+  compose up` works out of the box once `PROJECTX_ADMIN_PASSWORD` is set.
+- **Non-interactive setup mode** (`npm run setup --non-interactive`, or any run
+  without a TTY): configures the server entirely from environment variables
+  (workspace, host/port, admin account, JWT secret, Anthropic key). This is how
+  the Docker entrypoint provisions a fresh container.
+
+### Notes
+- The Docker image follows the standard multi-stage native-build recipe; the
+  server build and non-interactive setup are verified, but the image itself
+  should be built/run on your machine with `docker compose up`.
+
 ## [1.1.2] - 2026-06-01
 
 ### Added
@@ -53,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation hardening, optional SHA256 pin for the `cloudflared` binary, protection
   of Syncthing markers and system files from deletion.
 
+[1.1.3]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.3
 [1.1.2]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.2
 [1.1.1]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.0

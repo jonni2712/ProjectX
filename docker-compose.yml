@@ -1,0 +1,41 @@
+# ProjectX server — Docker Compose.
+#
+# Quick start:
+#   1. cp .env.docker.example .env
+#   2. edit .env and set PROJECTX_ADMIN_PASSWORD (and optionally JWT_SECRET)
+#   3. docker compose up -d
+#
+# The server runs on http://localhost:${PORT:-3000}. Your repositories live in
+# the host directory bound to /workspace (./workspace by default). Config and
+# the database persist in the named volume `projectx-data`.
+
+services:
+  server:
+    build:
+      context: ./server
+    image: projectx-server:latest
+    container_name: projectx-server
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      WORKSPACE_ROOT: "/workspace"
+      # Generated automatically on first run if left blank. Set it to keep
+      # sessions valid across container rebuilds.
+      JWT_SECRET: "${JWT_SECRET:-}"
+      # Admin account, seeded into the database on first run.
+      PROJECTX_ADMIN_USERNAME: "${PROJECTX_ADMIN_USERNAME:-admin}"
+      PROJECTX_ADMIN_PASSWORD: "${PROJECTX_ADMIN_PASSWORD:-}"
+      # Optional: comma-separated public origins (your tunnel/custom domain) and
+      # an Anthropic API key fallback for Claude when the CLI is unavailable.
+      PUBLIC_ORIGINS: "${PUBLIC_ORIGINS:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    volumes:
+      - projectx-data:/app/data
+      - "${WORKSPACE_DIR:-./workspace}:/workspace"
+
+volumes:
+  projectx-data:
