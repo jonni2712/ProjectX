@@ -5,6 +5,14 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Desktop app 1.1.2 - 2026-06-01
+
+### Fixed
+- **Release build was broken**: the committed `desktop/package-lock.json` was out
+  of sync with `package.json` (missing electron-builder Windows-signing deps),
+  so the CI `npm ci` step would fail before building. Regenerated the lockfile.
+  Verified locally that `npm ci`, `vite build` and the electron `tsc` all pass.
+
 ## Desktop app 1.1.1 - 2026-06-01
 
 ### Added
