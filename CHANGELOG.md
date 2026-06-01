@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.4 - 2026-06-01
+
+### Fixed
+- Launch the bundled server via an **interactive** login shell (`$SHELL -ilc`)
+  instead of `-lc`, so `nvm`/`fnm` Node installs (defined in `.zshrc`/`.bashrc`,
+  not the login profile) are found too. Without this, users with nvm-managed
+  Node still got "Server Offline".
+
 ## [1.1.7] - 2026-06-01 (server) / Desktop app 1.1.3 — packaging fix
 
 ### Fixed

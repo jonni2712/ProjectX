@@ -93,9 +93,11 @@ function startServer(): Promise<void> {
 
     // GUI apps launched from Finder/Explorer don't inherit the user's shell
     // PATH, so `node` (often installed via nvm/Homebrew/fnm) isn't found and the
-    // server can't start. On macOS/Linux we launch through a login shell so the
-    // profile is sourced and PATH is complete. On Windows the default PATH is
-    // adequate, so we keep the previous shell:true behaviour.
+    // server can't start. On macOS/Linux we launch through an interactive login
+    // shell (`-ilc`) so BOTH the login profile (.zprofile/.bash_profile) AND the
+    // interactive rc (.zshrc/.bashrc, where nvm/fnm usually live) are sourced and
+    // PATH is complete. On Windows the default PATH is adequate, so we keep the
+    // previous shell:true behaviour.
     let spawnCmd: string;
     let spawnArgs: string[];
     let useShell = false;
@@ -107,7 +109,7 @@ function startServer(): Promise<void> {
       const loginShell = process.env.SHELL || '/bin/zsh';
       const quoted = [command, ...args].map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');
       spawnCmd = loginShell;
-      spawnArgs = ['-lc', `exec ${quoted}`];
+      spawnArgs = ['-ilc', `exec ${quoted}`];
     }
 
     appendLog(`[desktop] Running: ${spawnCmd} ${spawnArgs.join(' ')} in ${serverCwdResolved} (data: ${dataDir})`);
