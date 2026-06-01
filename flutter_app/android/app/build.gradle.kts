@@ -8,7 +8,10 @@ plugins {
 android {
     namespace = "com.projectx.projectx_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Pinned to the NDK required by the plugins (mobile_scanner, file_picker,
+    // flutter_secure_storage, ...); higher than the Flutter default and
+    // backward compatible.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

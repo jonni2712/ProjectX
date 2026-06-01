@@ -32,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Mobile app 1.0.2 - 2026-06-01
+
+### Fixed
+- **APK build was broken**: `pubspec.yaml` pinned `sdk: ^3.10.0` (Dart 3.10),
+  which no available Flutter provides, so `flutter pub get` failed — the CI
+  build-mobile job couldn't even resolve dependencies. Lowered to `^3.6.0` and
+  `flutter_lints` to `^5.0.0`. Verified locally: `pub get` + `flutter analyze`
+  (0 errors) + `flutter build apk` succeed.
+- Pinned Android `ndkVersion = "27.0.12077973"` (required by mobile_scanner /
+  file_picker / secure_storage / etc.) to silence the NDK-mismatch warning.
+
 ## Desktop app 1.1.8 - 2026-06-01
 
 ### Fixed / UI
