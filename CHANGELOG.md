@@ -5,6 +5,15 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 2026-06-01
+
+### Added
+- Public `GET /setup/status` on the configured server (returns
+  `{ configured: true }`) and a matching `GET /health` + `/setup/status` on the
+  first-run setup server (`{ configured: false }`). Clients (desktop/mobile) can
+  now detect whether the server is in setup mode or ready, without auth — used
+  by the desktop app's first-run flow.
+
 ## [1.1.5] - 2026-06-01
 
 ### Added
@@ -131,6 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation hardening, optional SHA256 pin for the `cloudflared` binary, protection
   of Syncthing markers and system files from deletion.
 
+[1.1.6]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.6
 [1.1.5]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.5
 [1.1.4]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.4
 [1.1.3]: https://github.com/jonni2712/ProjectX/releases/tag/v1.1.3

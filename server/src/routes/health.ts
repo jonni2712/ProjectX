@@ -15,6 +15,14 @@ export default async function healthRoutes(fastify: FastifyInstance) {
     };
   });
 
+  // Public setup-status: the real (configured) server always reports true. The
+  // first-run setup server reports false at this same path, so clients can
+  // detect which mode the server is in without authenticating.
+  fastify.get('/setup/status', async () => ({
+    success: true,
+    data: { configured: true },
+  }));
+
   // Authenticated health — full info
   fastify.get('/health/full', {
     onRequest: [fastify.authenticate],

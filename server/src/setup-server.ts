@@ -127,6 +127,10 @@ export async function runSetupServer(): Promise<void> {
 
   fastify.get('/setup/status', async () => ({ success: true, data: { configured: false } }));
 
+  // Mirror the real server's public health endpoint so desktop/mobile clients
+  // (which poll /health) can tell the server is up but in setup mode.
+  fastify.get('/health', async () => ({ success: true, data: { status: 'setup', configured: false } }));
+
   fastify.post('/setup', async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, string>;
     const workspaceRoot = resolve((body.workspaceRoot || '').trim() || resolve(homedir(), 'projectx-workspace'));
