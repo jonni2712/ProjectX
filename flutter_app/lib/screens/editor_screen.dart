@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/file_provider.dart';
 import '../config/api_config.dart';
-import '../services/auth_service.dart';
-import '../providers/auth_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
@@ -161,7 +159,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               onPressed: fileState.hasUnsavedChanges
                   ? () async {
                       final saved = await ref.read(fileProvider.notifier).saveFile();
-                      if (saved && mounted) {
+                      if (saved && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Saved'), duration: Duration(seconds: 1)),
                         );
@@ -195,7 +193,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             if (_showSearch)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                color: const Color(0xFF1A1A2E),
+                                color: const Color(0xFF161B22),
                                 child: Row(
                                   children: [
                                     Expanded(
@@ -278,7 +276,7 @@ class _BinaryFileView extends StatelessWidget {
         children: [
           Icon(Icons.insert_drive_file, size: 64, color: Colors.grey[700]),
           const SizedBox(height: 16),
-          Text('Binary file (.${ext})', style: const TextStyle(fontSize: 16)),
+          Text('Binary file (.$ext)', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 8),
           Text(path, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 24),
@@ -343,7 +341,7 @@ class _CodeEditorBodyState extends State<_CodeEditorBody> {
     final lineNumWidth = _lineCount > 999 ? 56.0 : _lineCount > 99 ? 48.0 : 40.0;
 
     return Container(
-      color: const Color(0xFF0F0F1A),
+      color: const Color(0xFF0D1117),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -363,26 +361,26 @@ class _CodeEditorBodyState extends State<_CodeEditorBody> {
                     padding: const EdgeInsets.only(right: 12),
                     child: Text(
                       '${index + 1}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 12, color: const Color(0xFF444466), height: 1.5),
+                      style: GoogleFonts.jetBrainsMono(fontSize: 12, color: const Color(0xFF30363D), height: 1.5),
                     ),
                   );
                 },
               ),
             ),
           ),
-          Container(width: 1, color: const Color(0xFF1A1A2E)),
+          Container(width: 1, color: const Color(0xFF161B22)),
           Expanded(
             child: SingleChildScrollView(
               controller: widget.editorScrollController,
               child: TextField(
                 controller: widget.controller,
                 maxLines: null,
-                style: GoogleFonts.jetBrainsMono(fontSize: 13, height: 1.5, color: const Color(0xFFE0E0F0)),
+                style: GoogleFonts.jetBrainsMono(fontSize: 13, height: 1.5, color: const Color(0xFFE6EDF3)),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.all(12),
                 ),
-                cursorColor: const Color(0xFF6C9EFF),
+                cursorColor: const Color(0xFF4C8DFF),
                 onChanged: widget.onChanged,
               ),
             ),

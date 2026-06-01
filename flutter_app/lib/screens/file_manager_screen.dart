@@ -148,14 +148,14 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
   }
 
   Color _fileIconColor(FileNode node) {
-    if (node.isDirectory) return const Color(0xFF6C9EFF);
+    if (node.isDirectory) return const Color(0xFF4C8DFF);
     switch (node.extension) {
-      case 'dart': return const Color(0xFF4ECDC4);
+      case 'dart': return const Color(0xFF3FB950);
       case 'ts': case 'tsx': return const Color(0xFF3178C6);
       case 'js': case 'jsx': return const Color(0xFFF7DF1E);
       case 'json': return const Color(0xFFFFB347);
-      case 'md': return const Color(0xFF999999);
-      default: return const Color(0xFF666680);
+      case 'md': return const Color(0xFF8B949E);
+      default: return const Color(0xFF6E7681);
     }
   }
 

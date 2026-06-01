@@ -126,6 +126,19 @@ Code-level hardening from the security audit (the network-exposed surface):
 - The `build-mobile` job now also attaches the built APK to the GitHub release
   for the tag (best-effort), so it's downloadable directly.
 
+## Mobile app 1.0.3 - 2026-06-01
+
+### Changed (UI)
+- **New IDE-dark theme** (GitHub/VS Code inspired): centralized design tokens
+  (`AppColors`) — near-black neutral canvas `#0D1117`, layered surfaces, a single
+  blue accent `#4C8DFF`, semantic green/amber/red, crisp `#30363D` borders.
+  Refined typography (Inter UI + JetBrains Mono for code/paths), input/button/
+  card/nav/snackbar/chip component themes, consistent radii and elevation.
+  Migrated the whole app off the old blue/teal/yellow palette; language and
+  terminal-ANSI colors kept intentionally.
+- Cleaned up all analyzer lints (`withOpacity`→`withValues`, unused imports,
+  async-context guard) — `flutter analyze` is now clean (0 issues).
+
 ## Mobile app 1.0.2 - 2026-06-01
 
 ### Fixed

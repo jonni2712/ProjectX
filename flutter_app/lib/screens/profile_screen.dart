@@ -163,13 +163,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: authState.role == 'admin'
-                              ? const Color(0xFF6C9EFF).withOpacity(0.2)
-                              : const Color(0xFF4ECDC4).withOpacity(0.2),
+                              ? const Color(0xFF4C8DFF).withValues(alpha: 0.2)
+                              : const Color(0xFF3FB950).withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: authState.role == 'admin'
-                                ? const Color(0xFF6C9EFF)
-                                : const Color(0xFF4ECDC4),
+                                ? const Color(0xFF4C8DFF)
+                                : const Color(0xFF3FB950),
                           ),
                         ),
                         child: Text(
@@ -178,8 +178,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: authState.role == 'admin'
-                                ? const Color(0xFF6C9EFF)
-                                : const Color(0xFF4ECDC4),
+                                ? const Color(0xFF4C8DFF)
+                                : const Color(0xFF3FB950),
                           ),
                         ),
                       ),
@@ -302,7 +302,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.admin_panel_settings, color: Color(0xFF6C9EFF)),
+                leading: const Icon(Icons.admin_panel_settings, color: Color(0xFF4C8DFF)),
                 title: const Text('Admin Panel'),
                 subtitle: const Text('Manage users and permissions'),
                 trailing: const Icon(Icons.chevron_right),

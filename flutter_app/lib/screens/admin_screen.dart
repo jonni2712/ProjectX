@@ -232,10 +232,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final userListState = ref.watch(userListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: const Color(0xFF161B22),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -244,7 +244,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF6C9EFF),
+        backgroundColor: const Color(0xFF4C8DFF),
         onPressed: _showCreateUserDialog,
         child: const Icon(Icons.person_add, color: Colors.white),
       ),
@@ -287,12 +287,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           final isActive = user['active'] ?? true;
 
                           return Card(
-                            color: const Color(0xFF1A1A2E),
+                            color: const Color(0xFF161B22),
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: isActive
-                                    ? (role == 'admin' ? const Color(0xFF6C9EFF) : const Color(0xFF4ECDC4))
+                                    ? (role == 'admin' ? const Color(0xFF4C8DFF) : const Color(0xFF3FB950))
                                     : Colors.grey,
                                 child: Icon(
                                   role == 'admin' ? Icons.admin_panel_settings : Icons.person,
@@ -314,13 +314,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: role == 'admin'
-                                          ? const Color(0xFF6C9EFF).withOpacity(0.2)
-                                          : const Color(0xFF4ECDC4).withOpacity(0.2),
+                                          ? const Color(0xFF4C8DFF).withValues(alpha: 0.2)
+                                          : const Color(0xFF3FB950).withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: role == 'admin'
-                                            ? const Color(0xFF6C9EFF)
-                                            : const Color(0xFF4ECDC4),
+                                            ? const Color(0xFF4C8DFF)
+                                            : const Color(0xFF3FB950),
                                       ),
                                     ),
                                     child: Text(
@@ -329,8 +329,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                         color: role == 'admin'
-                                            ? const Color(0xFF6C9EFF)
-                                            : const Color(0xFF4ECDC4),
+                                            ? const Color(0xFF4C8DFF)
+                                            : const Color(0xFF3FB950),
                                       ),
                                     ),
                                   ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:xterm/xterm.dart';
@@ -238,19 +237,19 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                 fontFamily: GoogleFonts.jetBrainsMono().fontFamily!,
                               ),
                               theme: const TerminalTheme(
-                                cursor: Color(0xFF6C9EFF),
+                                cursor: Color(0xFF4C8DFF),
                                 selection: Color(0x406C9EFF),
-                                foreground: Color(0xFFE0E0E0),
-                                background: Color(0xFF0F0F1A),
-                                black: Color(0xFF1A1A2E),
-                                red: Color(0xFFFF6B6B),
-                                green: Color(0xFF4ECDC4),
-                                yellow: Color(0xFFFFE66D),
-                                blue: Color(0xFF6C9EFF),
+                                foreground: Color(0xFFE6EDF3),
+                                background: Color(0xFF0D1117),
+                                black: Color(0xFF161B22),
+                                red: Color(0xFFF85149),
+                                green: Color(0xFF3FB950),
+                                yellow: Color(0xFFD29922),
+                                blue: Color(0xFF4C8DFF),
                                 magenta: Color(0xFFCB6CE6),
                                 cyan: Color(0xFF56CCF2),
-                                white: Color(0xFFE0E0E0),
-                                brightBlack: Color(0xFF666680),
+                                white: Color(0xFFE6EDF3),
+                                brightBlack: Color(0xFF6E7681),
                                 brightRed: Color(0xFFFF8888),
                                 brightGreen: Color(0xFF7EEDD8),
                                 brightYellow: Color(0xFFFFF3A0),
@@ -299,7 +298,7 @@ class _SpecialKeysBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 36,
-      color: const Color(0xFF16162A),
+      color: const Color(0xFF0D1117),
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -334,7 +333,7 @@ class _KeyButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
       child: Material(
-        color: active ? const Color(0xFF6C9EFF) : const Color(0xFF1A1A2E),
+        color: active ? const Color(0xFF4C8DFF) : const Color(0xFF161B22),
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onKey,
@@ -377,7 +376,7 @@ class _TerminalInputBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       decoration: const BoxDecoration(
-        color: Color(0xFF1A1A2E),
+        color: Color(0xFF161B22),
         border: Border(top: BorderSide(color: Colors.white10)),
       ),
       child: SafeArea(
@@ -386,7 +385,7 @@ class _TerminalInputBar extends StatelessWidget {
           children: [
             const Text(
               '\$',
-              style: TextStyle(color: Color(0xFF4ECDC4), fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Color(0xFF3FB950), fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -396,9 +395,9 @@ class _TerminalInputBar extends StatelessWidget {
                 style: GoogleFonts.jetBrainsMono(fontSize: 14, color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Type command...',
-                  hintStyle: GoogleFonts.jetBrainsMono(fontSize: 14, color: const Color(0xFF555570)),
+                  hintStyle: GoogleFonts.jetBrainsMono(fontSize: 14, color: const Color(0xFF6E7681)),
                   filled: true,
-                  fillColor: const Color(0xFF0F0F1A),
+                  fillColor: const Color(0xFF0D1117),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
@@ -414,7 +413,7 @@ class _TerminalInputBar extends StatelessWidget {
             IconButton(
               onPressed: onSubmit,
               icon: const Icon(Icons.send, size: 20),
-              color: const Color(0xFF6C9EFF),
+              color: const Color(0xFF4C8DFF),
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               padding: EdgeInsets.zero,
             ),

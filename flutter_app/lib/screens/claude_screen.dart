@@ -70,7 +70,7 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
               height: 28,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6C9EFF), Color(0xFF4ECDC4)],
+                  colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)],
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -192,18 +192,18 @@ class _EmptyState extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF6C9EFF).withValues(alpha: 0.2),
-                  const Color(0xFF4ECDC4).withValues(alpha: 0.2),
+                  const Color(0xFF4C8DFF).withValues(alpha: 0.2),
+                  const Color(0xFF3FB950).withValues(alpha: 0.2),
                 ],
               ),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Icon(Icons.smart_toy, size: 40, color: Color(0xFF6C9EFF)),
+            child: const Icon(Icons.smart_toy, size: 40, color: Color(0xFF4C8DFF)),
           ),
           const SizedBox(height: 20),
           Text(
             'Ask Claude anything',
-            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFFE0E0E0)),
+            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFFE6EDF3)),
           ),
           const SizedBox(height: 8),
           Text(
@@ -236,7 +236,7 @@ class _SuggestionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return ActionChip(
       label: Text(label, style: const TextStyle(fontSize: 12)),
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: const Color(0xFF161B22),
       side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       onPressed: () {},
     );
@@ -257,7 +257,7 @@ class _MessageBubble extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: isUser ? Colors.transparent : const Color(0xFF12122A),
+      color: isUser ? Colors.transparent : const Color(0xFF161B22),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +268,7 @@ class _MessageBubble extends StatelessWidget {
               if (isUser)
                 const CircleAvatar(
                   radius: 12,
-                  backgroundColor: Color(0xFF6C9EFF),
+                  backgroundColor: Color(0xFF4C8DFF),
                   child: Icon(Icons.person, size: 14, color: Colors.white),
                 )
               else
@@ -277,7 +277,7 @@ class _MessageBubble extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF6C9EFF), Color(0xFF4ECDC4)],
+                      colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)],
                     ),
                     borderRadius: BorderRadius.circular(6),
                   ),
@@ -289,7 +289,7 @@ class _MessageBubble extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isUser ? const Color(0xFF6C9EFF) : const Color(0xFF4ECDC4),
+                  color: isUser ? const Color(0xFF4C8DFF) : const Color(0xFF3FB950),
                 ),
               ),
               const Spacer(),
@@ -414,7 +414,7 @@ class _CodeBlock extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0A18),
+        color: const Color(0xFF010409),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -454,7 +454,7 @@ class _CodeBlock extends StatelessWidget {
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 13,
                 height: 1.5,
-                color: const Color(0xFFE0E0E0),
+                color: const Color(0xFFE6EDF3),
               ),
             ),
           ),
@@ -478,7 +478,7 @@ class _TextBlock extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 14,
           height: 1.6,
-          color: const Color(0xFFE0E0E0),
+          color: const Color(0xFFE6EDF3),
         ),
       ),
     );
@@ -519,8 +519,8 @@ class _TextBlock extends StatelessWidget {
           text: earliest.group(1),
           style: GoogleFonts.jetBrainsMono(
             fontSize: 13,
-            backgroundColor: const Color(0xFF1A1A2E),
-            color: const Color(0xFF4ECDC4),
+            backgroundColor: const Color(0xFF161B22),
+            color: const Color(0xFF3FB950),
           ),
         ));
       } else {
@@ -568,7 +568,7 @@ class _CopyButtonState extends State<_CopyButton> {
         child: Icon(
           _copied ? Icons.check : Icons.copy,
           size: widget.size,
-          color: _copied ? const Color(0xFF4ECDC4) : Colors.grey,
+          color: _copied ? const Color(0xFF3FB950) : Colors.grey,
         ),
       ),
     );
@@ -641,7 +641,7 @@ class _InputBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
+        color: const Color(0xFF161B22),
         border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
       ),
       child: SafeArea(
@@ -681,9 +681,9 @@ class _InputBar extends StatelessWidget {
                       hintText: isConnected
                           ? (isStreaming ? 'Claude is thinking...' : 'Message Claude...')
                           : 'Connect to server first',
-                      hintStyle: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF555570)),
+                      hintStyle: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF6E7681)),
                       filled: true,
-                      fillColor: const Color(0xFF0F0F1A),
+                      fillColor: const Color(0xFF0D1117),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -696,7 +696,7 @@ class _InputBar extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     gradient: isConnected && !isStreaming
-                        ? const LinearGradient(colors: [Color(0xFF6C9EFF), Color(0xFF4ECDC4)])
+                        ? const LinearGradient(colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)])
                         : null,
                     color: isConnected && !isStreaming ? null : Colors.grey.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),

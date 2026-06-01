@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/git_provider.dart';
-import '../providers/file_provider.dart';
 
 class GitScreen extends ConsumerStatefulWidget {
   const GitScreen({super.key});
@@ -217,7 +216,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: const Color(0xFF161B22),
               border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
             ),
             child: SafeArea(
@@ -394,23 +393,23 @@ class _RepoSelector extends StatelessWidget {
                   Icon(
                     Icons.account_tree,
                     size: 14,
-                    color: isActive ? const Color(0xFF0F0F1A) : const Color(0xFF6C9EFF),
+                    color: isActive ? const Color(0xFF0D1117) : const Color(0xFF4C8DFF),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     repoName,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 12,
-                      color: isActive ? const Color(0xFF0F0F1A) : const Color(0xFFE0E0F0),
+                      color: isActive ? const Color(0xFF0D1117) : const Color(0xFFE6EDF3),
                     ),
                   ),
                 ],
               ),
               selected: isActive,
-              selectedColor: const Color(0xFF6C9EFF),
-              backgroundColor: const Color(0xFF1A1A2E),
+              selectedColor: const Color(0xFF4C8DFF),
+              backgroundColor: const Color(0xFF161B22),
               side: BorderSide(
-                color: isActive ? const Color(0xFF6C9EFF) : const Color(0xFF2A2A3E),
+                color: isActive ? const Color(0xFF4C8DFF) : const Color(0xFF21262D),
               ),
               onSelected: (_) => onSelected(repo),
             ),
