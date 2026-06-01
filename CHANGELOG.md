@@ -5,6 +5,24 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8] - 2026-06-01 (server) — security: dependency CVEs
+
+### Security
+- **Upgraded `@fastify/jwt` to ^10** (pulls the fixed `fast-jwt` line), closing
+  **critical** auth CVEs: algorithm-confusion, `crit`-header acceptance,
+  cache-confusion (claims from a different token), ReDoS, and empty-HMAC bypass.
+  Auth underpins the whole product. Also **pinned the JWT algorithm to HS256**
+  on both sign and verify (no asymmetric/`none` confusion possible).
+- **Upgraded `simple-git` to ^3.36** — fixes the **CVSS 9.8 RCE** (GHSA-hffm-xvc3-vprc)
+  reachable from the authenticated git endpoints.
+- **Cleared the dependency backlog** via `npm audit fix`: fastify (Content-Type
+  validation bypass), fast-uri (path traversal), lodash (code injection /
+  prototype pollution), `ws`, and bumped `uuid` to ^11. Verified auth end-to-end
+  (login → verify → tampered-token reject) still works.
+- Residual: `tar` (high) only via `@mapbox/node-pre-gyp`, used at native-module
+  **install time** (trusted prebuilt sources), not reachable at server runtime —
+  accepted/documented to avoid breaking the native-module ABI.
+
 ## Desktop app 1.1.11 - 2026-06-01
 
 ### Added

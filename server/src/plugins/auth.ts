@@ -34,9 +34,13 @@ export function validateWsTicket(ticket: string): { userId: string; username: st
 }
 
 async function authPlugin(fastify: FastifyInstance) {
+  // Pin the algorithm to HS256 on BOTH sign and verify so no algorithm-confusion
+  // (asymmetric/`none`) token can ever be accepted — defence in depth on top of
+  // the upgraded fast-jwt.
   await fastify.register(fastifyJwt, {
     secret: config.jwt.secret,
-    sign: { expiresIn: config.jwt.expiresIn },
+    sign: { expiresIn: config.jwt.expiresIn, algorithm: 'HS256' },
+    verify: { algorithms: ['HS256'] },
   });
 
   // Verify the JWT's token_version matches the current DB value.
