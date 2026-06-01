@@ -26,9 +26,25 @@ jobs:
       - name: Install server dependencies
         run: cd server && npm ci
 
+      # Compile the server to dist/ (the packaged app runs dist, not tsx)
+      - name: Build server
+        run: cd server && npm run build
+
       # Install desktop dependencies
       - name: Install desktop dependencies
         run: cd desktop && npm ci
+
+      # Rebuild the server's native modules (better-sqlite3, node-pty, bcrypt)
+      # against Electron's ABI: the packaged app runs the server with Electron's
+      # own Node (ELECTRON_RUN_AS_NODE), so modules built for the CI's Node would
+      # fail to load at runtime (NODE_MODULE_VERSION mismatch).
+      - name: Rebuild server native modules for Electron
+        shell: bash
+        run: |
+          cd desktop
+          ELECTRON_VER=$(node -p "require('electron/package.json').version")
+          echo "Rebuilding ../server native modules for Electron $ELECTRON_VER"
+          npx --yes @electron/rebuild@latest --module-dir ../server --version "$ELECTRON_VER" --force
 
       # Build desktop app
       # On macOS: if Apple Developer secrets are set, the app is signed

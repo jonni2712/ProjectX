@@ -1,6 +1,6 @@
 {
   "name": "projectx-server",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "ProjectX - Remote Development Server",
   "author": "Jonathan Boccotti",
   "main": "dist-electron/main.js",
@@ -28,16 +28,12 @@
         "to": "server/src"
       },
       {
+        "from": "../server/dist",
+        "to": "server/dist"
+      },
+      {
         "from": "../server/package.json",
         "to": "server/package.json"
-      },
-      {
-        "from": "../server/tsconfig.json",
-        "to": "server/tsconfig.json"
-      },
-      {
-        "from": "../server/.env.example",
-        "to": "server/.env.example"
       },
       {
         "from": "../server/node_modules",

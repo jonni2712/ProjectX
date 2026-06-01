@@ -60,26 +60,6 @@ function startServer(): Promise<void> {
 
     const serverCwdResolved = serverCwd;
 
-    // Find tsx binary
-    let command: string;
-    let args: string[];
-
-    if (app.isPackaged) {
-      // In packaged app, tsx is in server/node_modules/.bin/
-      const tsxBin = path.join(serverCwdResolved, 'node_modules', '.bin', 'tsx');
-      if (fs.existsSync(tsxBin) || fs.existsSync(tsxBin + '.cmd')) {
-        command = process.platform === 'win32' ? tsxBin + '.cmd' : tsxBin;
-        args = ['src/index.ts'];
-      } else {
-        // Fallback to npx
-        command = 'npx';
-        args = ['tsx', 'src/index.ts'];
-      }
-    } else {
-      command = 'npx';
-      args = ['tsx', 'src/index.ts'];
-    }
-
     // No .env is created here on purpose. On a fresh install the server boots
     // into first-run setup mode (answering /setup/status = configured:false),
     // and the dashboard's SetupWizard configures it.
@@ -89,27 +69,33 @@ function startServer(): Promise<void> {
     // honours PROJECTX_DATA_DIR.
     const dataDir = path.join(app.getPath('userData'), 'data');
     try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* best effort */ }
-    const serverEnv = { ...process.env, PROJECTX_DATA_DIR: dataDir };
+    const baseEnv: NodeJS.ProcessEnv = { ...process.env, PROJECTX_DATA_DIR: dataDir };
 
-    // GUI apps launched from Finder/Explorer don't inherit the user's shell
-    // PATH, so `node` (often installed via nvm/Homebrew/fnm) isn't found and the
-    // server can't start. On macOS/Linux we launch through an interactive login
-    // shell (`-ilc`) so BOTH the login profile (.zprofile/.bash_profile) AND the
-    // interactive rc (.zshrc/.bashrc, where nvm/fnm usually live) are sourced and
-    // PATH is complete. On Windows the default PATH is adequate, so we keep the
-    // previous shell:true behaviour.
     let spawnCmd: string;
     let spawnArgs: string[];
     let useShell = false;
-    if (process.platform === 'win32') {
-      spawnCmd = command;
-      spawnArgs = args;
+    let serverEnv: NodeJS.ProcessEnv = baseEnv;
+
+    if (app.isPackaged) {
+      // Run the PRE-COMPILED server (dist/index.js) using Electron's OWN Node
+      // (ELECTRON_RUN_AS_NODE). This removes any dependency on a system Node
+      // install AND fixes native-module ABI mismatches: the bundled native
+      // modules (better-sqlite3, node-pty, bcrypt) are rebuilt for Electron's
+      // ABI at build time, and here they run against that exact same runtime.
+      spawnCmd = process.execPath;
+      spawnArgs = ['dist/index.js'];
+      serverEnv = { ...baseEnv, ELECTRON_RUN_AS_NODE: '1' };
+    } else if (process.platform === 'win32') {
+      // Dev on Windows: system Node is on PATH.
+      spawnCmd = 'npx';
+      spawnArgs = ['tsx', 'src/index.ts'];
       useShell = true;
     } else {
+      // Dev on macOS/Linux: launch through an interactive login shell so the
+      // developer's PATH (nvm/fnm/Homebrew) is available.
       const loginShell = process.env.SHELL || '/bin/zsh';
-      const quoted = [command, ...args].map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');
       spawnCmd = loginShell;
-      spawnArgs = ['-ilc', `exec ${quoted}`];
+      spawnArgs = ['-ilc', 'exec npx tsx src/index.ts'];
     }
 
     appendLog(`[desktop] Running: ${spawnCmd} ${spawnArgs.join(' ')} in ${serverCwdResolved} (data: ${dataDir})`);

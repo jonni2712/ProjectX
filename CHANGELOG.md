@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.5 - 2026-06-01
+
+### Fixed
+- **Native-module ABI mismatch** ("better_sqlite3.node compiled against a
+  different Node.js version", NODE_MODULE_VERSION 115 vs 137). The packaged app
+  no longer runs the server with the user's system Node. Instead it runs the
+  **pre-compiled server (`dist/`) with Electron's own Node** via
+  `ELECTRON_RUN_AS_NODE`, and the CI **rebuilds the server's native modules
+  (better-sqlite3, node-pty, bcrypt) against Electron's ABI** (`@electron/rebuild`).
+  This removes the dependency on a system Node entirely and makes the runtime ABI
+  deterministic — fixing both "Server Offline" (node not found) and the ABI error.
+- Bundle `server/dist` (+ keep `package.json` for ESM `type:module` + rebuilt
+  `node_modules`); dropped `server/src`/tsconfig/.env.example from the package.
+
 ## Desktop app 1.1.4 - 2026-06-01
 
 ### Fixed
