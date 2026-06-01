@@ -3,6 +3,7 @@ import path from 'path';
 import { spawn, ChildProcess, execSync } from 'child_process';
 import http from 'http';
 import fs from 'fs';
+import os from 'os';
 import { autoUpdater } from 'electron-updater';
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -79,19 +80,10 @@ function startServer(): Promise<void> {
       args = ['tsx', 'src/index.ts'];
     }
 
-    // Ensure .env exists (copy from .env.example if needed)
-    const envPath = path.join(serverCwdResolved, '.env');
-    const envExamplePath = path.join(serverCwdResolved, '.env.example');
-    if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
-      appendLog('[desktop] Creating default .env from .env.example');
-      let envContent = fs.readFileSync(envExamplePath, 'utf-8');
-      // Set defaults for first run
-      const crypto = require('crypto');
-      const jwtSecret = crypto.randomBytes(32).toString('hex');
-      envContent = envContent.replace(/JWT_SECRET=.*/, `JWT_SECRET=${jwtSecret}`);
-      envContent = envContent.replace(/WORKSPACE_ROOT=.*/, `WORKSPACE_ROOT=${process.env.USERPROFILE || process.env.HOME || '/home'}`);
-      fs.writeFileSync(envPath, envContent, 'utf-8');
-    }
+    // No .env is created here on purpose. On a fresh install the server boots
+    // into first-run setup mode (answering /setup/status = configured:false),
+    // and the dashboard's SetupWizard configures it. Once configured, the
+    // server persists everything in data/config.json.
 
     appendLog(`[desktop] Running: ${command} ${args.join(' ')} in ${serverCwdResolved}`);
 
@@ -348,6 +340,22 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('open-external', async (_event, url: string) => {
     await shell.openExternal(url);
+  });
+
+  ipcMain.handle('get-server-info', () => {
+    const port = 3000;
+    const urls: string[] = [`http://localhost:${port}`];
+    // Enumerate LAN IPv4 addresses so the QR can encode a URL reachable from a
+    // phone on the same network (before a tunnel is set up).
+    const ifaces = os.networkInterfaces();
+    for (const name of Object.keys(ifaces)) {
+      for (const ni of ifaces[name] ?? []) {
+        if (ni.family === 'IPv4' && !ni.internal) {
+          urls.push(`http://${ni.address}:${port}`);
+        }
+      }
+    }
+    return { port, urls };
   });
 
   ipcMain.handle('select-directory', async () => {

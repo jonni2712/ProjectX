@@ -5,6 +5,7 @@ interface ElectronAPI {
   restartServer: () => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   selectDirectory: () => Promise<string | null>;
+  getServerInfo: () => Promise<{ port: number; urls: string[] }>;
 }
 
 declare global {

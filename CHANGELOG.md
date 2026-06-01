@@ -5,6 +5,25 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Desktop app 1.1.1 - 2026-06-01
+
+### Added
+- **First-run setup in the dashboard**: when the bundled server is unconfigured,
+  the desktop app now shows a functional SetupWizard (workspace, admin account,
+  optional public origins / Anthropic key) that posts to `/setup` and waits for
+  the server to come up — no terminal or `.env` editing.
+- **Remote Access page** rebuilt around the automated Cloudflare endpoints:
+  one-click **quick tunnel**, a **named-tunnel** form (API token + hostname),
+  live status and a stop button.
+- **Device pairing QR**: the page renders a QR encoding `{name,url}` (the live
+  tunnel URL when on, otherwise a LAN address) that the mobile app scans to add
+  the server.
+
+### Changed
+- The desktop app no longer writes a default `.env`; the server boots into
+  first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
+  for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
+
 ## [1.1.6] - 2026-06-01
 
 ### Added

@@ -6,18 +6,20 @@ interface AuthState {
   isLoading: boolean;
   user: { username: string; role: string } | null;
   serverOnline: boolean;
+  needsSetup: boolean;
 }
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
-    isAuthenticated: false, isLoading: true, user: null, serverOnline: false
+    isAuthenticated: false, isLoading: true, user: null, serverOnline: false, needsSetup: false
   });
 
   useEffect(() => {
@@ -32,8 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function checkServer() {
     try {
-      await api.ping();
-      setState(s => ({ ...s, isLoading: false, serverOnline: true }));
+      // /setup/status doubles as a reachability check and tells us whether the
+      // server still needs first-run configuration.
+      const status = await api.setupStatus();
+      const needsSetup = status?.configured === false;
+      setState(s => ({ ...s, isLoading: false, serverOnline: true, needsSetup }));
     } catch {
       setState(s => ({ ...s, isLoading: false, serverOnline: false }));
     }
@@ -57,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refresh: checkServer }}>
       {children}
     </AuthContext.Provider>
   );

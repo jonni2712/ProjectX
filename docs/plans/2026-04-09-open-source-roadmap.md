@@ -46,7 +46,7 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 - ✅ Configurare DNS record automaticamente (CNAME → `<id>.cfargotunnel.com`, create/update)
 - ✅ Avviare cloudflared come child process (PID file + orphan cleanup + resume su restart)
 - ✅ Quick tunnel zero-config (`*.trycloudflare.com`) per accesso istantaneo senza account
-- ⏳ UI lato Flutter/desktop per pilotare gli endpoint (TODO)
+- ✅ UI desktop (Electron): pagina "Remote Access" pilota gli endpoint + first-run SetupWizard + QR pairing (desktop app 1.1.1). UI Flutter ⏳ TODO
 
 ---
 

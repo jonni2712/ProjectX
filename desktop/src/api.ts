@@ -112,4 +112,35 @@ export const api = {
   async updateConfig(config: { workspaceRoot?: string; port?: number; host?: string }) {
     return request('/config/update', { method: 'POST', body: JSON.stringify(config) });
   },
+
+  // First-run setup (only meaningful while the server is unconfigured)
+  async setupStatus(): Promise<{ configured: boolean }> {
+    const res = await fetch(`${API_BASE}/setup/status`);
+    const data = await res.json();
+    return data.data;
+  },
+  async submitSetup(body: {
+    workspaceRoot: string;
+    adminUsername: string;
+    adminPassword: string;
+    publicOrigins?: string;
+    anthropicApiKey?: string;
+  }) {
+    const res = await fetch(`${API_BASE}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Setup failed');
+    return data;
+  },
+
+  // Automated Cloudflare tunnels (admin-only)
+  async cloudflareStatus() { return request('/cloudflare/status'); },
+  async cloudflareQuickStart() { return request('/cloudflare/quick-start', { method: 'POST', body: '{}' }); },
+  async cloudflareNamedStart(body: { apiToken: string; accountId: string; zoneId: string; hostname: string; name?: string }) {
+    return request('/cloudflare/named-start', { method: 'POST', body: JSON.stringify(body) });
+  },
+  async cloudflareStop() { return request('/cloudflare/stop', { method: 'POST', body: '{}' }); },
 };

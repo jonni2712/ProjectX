@@ -6,4 +6,8 @@ declare module 'qrcode' {
     text: string,
     options?: Record<string, any>,
   ): Promise<void>;
+  export function toDataURL(
+    text: string,
+    options?: Record<string, any>,
+  ): Promise<string>;
 }

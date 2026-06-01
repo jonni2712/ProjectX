@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartServer: () => ipcRenderer.invoke('restart-server'),
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  getServerInfo: () => ipcRenderer.invoke('get-server-info'),
 });

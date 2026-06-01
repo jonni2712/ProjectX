@@ -14,7 +14,7 @@ const navItems = [
   { to: '/', icon: Server, label: 'Dashboard' },
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/files', icon: FolderOpen, label: 'Files' },
-  { to: '/tunnel', icon: Globe, label: 'Tunnel' },
+  { to: '/tunnel', icon: Globe, label: 'Remote' },
   { to: '/logs', icon: Activity, label: 'Logs' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
@@ -127,9 +127,11 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, needsSetup, refresh, user, logout } = useAuth();
 
   if (isLoading) return <LoadingScreen />;
+  // Fresh install: the server is up but unconfigured — run first-run setup.
+  if (needsSetup) return <SetupWizard onComplete={refresh} />;
   if (!isAuthenticated) return <LoginScreen />;
 
   return (

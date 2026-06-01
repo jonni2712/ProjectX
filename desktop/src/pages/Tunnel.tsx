@@ -1,27 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Globe, Check, AlertCircle, ExternalLink, RefreshCw, Loader2 } from 'lucide-react';
+import { Globe, AlertCircle, ExternalLink, RefreshCw, Loader2, QrCode, Power, Smartphone } from 'lucide-react';
+import QRCode from 'qrcode';
 import { api } from '../api';
 
-interface TunnelStatus {
-  configured: boolean;
+interface CfStatus {
+  installed: boolean;
   running: boolean;
-  domain: string | null;
-  tunnelId: string | null;
+  mode: 'quick' | 'named' | null;
+  url: string | null;
+  hostname: string | null;
 }
 
 export default function TunnelPage() {
-  const [status, setStatus] = useState<TunnelStatus | null>(null);
+  const [status, setStatus] = useState<CfStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lanUrls, setLanUrls] = useState<string[]>([]);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [showNamed, setShowNamed] = useState(false);
+  const [named, setNamed] = useState({ apiToken: '', accountId: '', zoneId: '', hostname: '' });
 
   const fetchStatus = useCallback(async () => {
     try {
-      const data = await api.tunnelStatus();
+      const data = await api.cloudflareStatus();
       setStatus(data);
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch tunnel status');
+      setError(err.message || 'Failed to fetch remote-access status');
     } finally {
       setLoading(false);
     }
@@ -29,39 +35,74 @@ export default function TunnelPage() {
 
   useEffect(() => {
     fetchStatus();
+    window.electronAPI?.getServerInfo().then(info => setLanUrls(info.urls)).catch(() => {});
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  const handleToggle = async () => {
-    if (!status || toggling) return;
-    setToggling(true);
+  // The URL a phone should connect to: the live tunnel if up, else a LAN address.
+  const pairingUrl =
+    (status?.running && status?.url) ? status.url
+    : (lanUrls.find(u => !u.includes('localhost')) || lanUrls[0] || 'http://localhost:3000');
+
+  // Render the pairing QR. Payload matches what the mobile app parses
+  // ({name,url}); a plain URL would also work.
+  useEffect(() => {
+    let cancelled = false;
+    const payload = JSON.stringify({ name: 'ProjectX', url: pairingUrl });
+    QRCode.toDataURL(payload, { width: 220, margin: 1, color: { dark: '#0F0F1A', light: '#FFFFFF' } })
+      .then(d => { if (!cancelled) setQrDataUrl(d); })
+      .catch(() => { if (!cancelled) setQrDataUrl(null); });
+    return () => { cancelled = true; };
+  }, [pairingUrl]);
+
+  async function quickStart() {
+    setBusy(true); setError(null);
     try {
-      if (status.running) {
-        await api.tunnelStop();
-      } else {
-        await api.tunnelStart();
-      }
-      // Wait a moment for the process to start/stop, then refresh
+      await api.cloudflareQuickStart();
       setTimeout(fetchStatus, 1500);
     } catch (err: any) {
-      setError(err.message || 'Failed to toggle tunnel');
+      setError(err.message || 'Failed to start the tunnel');
     } finally {
-      setToggling(false);
+      setBusy(false);
     }
-  };
+  }
+
+  async function namedStart(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try {
+      await api.cloudflareNamedStart(named);
+      setShowNamed(false);
+      setTimeout(fetchStatus, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create the named tunnel');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function stop() {
+    setBusy(true); setError(null);
+    try {
+      await api.cloudflareStop();
+      setTimeout(fetchStatus, 1000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to stop the tunnel');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const running = status?.running ?? false;
-  const configured = status?.configured ?? false;
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-3xl">
       <div className="drag-area mb-8">
-        <h1 className="text-2xl font-bold text-white">Cloudflare Tunnel</h1>
-        <p className="text-sm text-gray-400 mt-1">Access your server from anywhere</p>
+        <h1 className="text-2xl font-bold text-white">Remote Access</h1>
+        <p className="text-sm text-gray-400 mt-1">Reach your server from your phone, anywhere</p>
       </div>
 
-      {/* Error banner */}
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-400 shrink-0" />
@@ -69,127 +110,104 @@ export default function TunnelPage() {
         </div>
       )}
 
-      {/* Status card */}
+      {/* Pairing QR */}
       <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${running ? 'bg-green-500/15' : 'bg-gray-500/15'}`}>
-              {loading ? (
-                <Loader2 size={24} className="text-gray-400 animate-spin" />
-              ) : (
-                <Globe size={24} className={running ? 'text-green-400' : 'text-gray-500'} />
-              )}
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">
-                {loading ? 'Checking...' : running ? 'Tunnel Active' : 'Tunnel Inactive'}
-              </h3>
-              <p className="text-sm text-gray-400">
-                {loading
-                  ? 'Fetching tunnel status'
-                  : running
-                    ? 'Your server is accessible from the internet'
-                    : configured
-                      ? 'Tunnel is configured but not running'
-                      : 'No tunnel configuration found'}
-              </p>
-            </div>
+        <div className="flex items-center gap-2 mb-4">
+          <Smartphone size={18} className="text-[#4ECDC4]" />
+          <h3 className="font-semibold text-white">Pair a device</h3>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="bg-white rounded-xl p-3 shrink-0">
+            {qrDataUrl
+              ? <img src={qrDataUrl} alt="Pairing QR" width={180} height={180} />
+              : <div className="w-[180px] h-[180px] flex items-center justify-center"><QrCode size={48} className="text-gray-300" /></div>}
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={fetchStatus}
-              className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
-              title="Refresh status"
-            >
-              <RefreshCw size={16} />
-            </button>
-            <button
-              onClick={handleToggle}
-              disabled={!configured || toggling || loading}
-              className={`relative w-12 h-7 rounded-full transition-colors ${
-                !configured || loading
-                  ? 'bg-gray-700 opacity-50 cursor-not-allowed'
-                  : running
-                    ? 'bg-[#4ECDC4]'
-                    : 'bg-gray-600'
-              }`}
-            >
-              {toggling ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 size={14} className="text-white animate-spin" />
-                </div>
-              ) : (
-                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${running ? 'left-6' : 'left-1'}`} />
-              )}
-            </button>
+          <div className="text-sm text-gray-400">
+            <p className="mb-3">Open the ProjectX app on your phone and scan this code to add this server.</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">URL</span>
+              <code className="text-xs text-[#6C9EFF] break-all">{pairingUrl}</code>
+            </div>
+            {!running && (
+              <p className="text-xs text-yellow-400/80 mt-3">
+                This is a local-network address. Enable remote access below to get a public URL that works anywhere.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Connection info */}
-      {status && (
-        <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-6 mb-6">
-          <h3 className="font-semibold text-white mb-4">Connection Details</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-sm text-gray-400">Status</span>
-              <span className={`text-sm font-medium flex items-center gap-1.5 ${running ? 'text-green-400' : 'text-gray-500'}`}>
-                <span className={`w-2 h-2 rounded-full ${running ? 'bg-green-400' : 'bg-gray-500'}`} />
-                {running ? 'Running' : 'Stopped'}
-              </span>
+      {/* Remote access control */}
+      <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${running ? 'bg-green-500/15' : 'bg-gray-500/15'}`}>
+              {loading ? <Loader2 size={22} className="text-gray-400 animate-spin" /> : <Globe size={22} className={running ? 'text-green-400' : 'text-gray-500'} />}
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-sm text-gray-400">Domain</span>
-              {status.domain ? (
-                <a
-                  href={`https://${status.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-[#6C9EFF] hover:underline flex items-center gap-1"
-                >
-                  {status.domain}
-                  <ExternalLink size={12} />
-                </a>
-              ) : (
-                <span className="text-sm text-gray-500">Not configured</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-white/5">
-              <span className="text-sm text-gray-400">Tunnel ID</span>
-              <span className="text-sm text-gray-300 font-mono">
-                {status.tunnelId || 'N/A'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-400">Configuration</span>
-              <span className={`text-sm flex items-center gap-1.5 ${configured ? 'text-green-400' : 'text-yellow-400'}`}>
-                {configured ? <Check size={14} /> : <AlertCircle size={14} />}
-                {configured ? 'Valid' : 'Missing'}
-              </span>
+            <div>
+              <h3 className="font-semibold text-white">{running ? 'Remote access on' : 'Remote access off'}</h3>
+              <p className="text-sm text-gray-400">
+                {running
+                  ? `${status?.mode === 'named' ? 'Named tunnel' : 'Quick tunnel'} active`
+                  : 'Your server is only reachable on the local network'}
+              </p>
             </div>
           </div>
+          <button onClick={fetchStatus} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white" title="Refresh">
+            <RefreshCw size={16} />
+          </button>
         </div>
-      )}
 
-      {/* Info box */}
-      <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-6">
-        <h3 className="font-semibold text-white mb-3">About Cloudflare Tunnel</h3>
-        <p className="text-sm text-gray-400 leading-relaxed">
-          Cloudflare Tunnel creates a secure, outbound-only connection between your server and Cloudflare's network.
-          When active, your ProjectX server is accessible at your configured domain without exposing any ports
-          or requiring a public IP address.
-        </p>
-        <div className="mt-4 flex items-center gap-2">
-          <a
-            href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-[#6C9EFF] hover:underline flex items-center gap-1"
-          >
-            Learn more
-            <ExternalLink size={10} />
-          </a>
-        </div>
+        {running && status?.url && (
+          <div className="flex items-center justify-between py-2 px-3 mb-4 bg-[#0F0F1A] rounded-lg">
+            <a href={status.url} target="_blank" rel="noopener noreferrer" className="text-sm text-[#6C9EFF] hover:underline flex items-center gap-1.5 break-all">
+              {status.url} <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
+
+        {running ? (
+          <button onClick={stop} disabled={busy} className="flex items-center gap-2 px-4 py-2.5 bg-red-500/15 text-red-300 rounded-lg text-sm font-medium hover:bg-red-500/25 disabled:opacity-50">
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />} Turn off remote access
+          </button>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            <button onClick={quickStart} disabled={busy} className="flex items-center gap-2 px-5 py-2.5 bg-[#6C9EFF] text-white rounded-lg text-sm font-medium hover:bg-[#5A8BE6] disabled:opacity-50">
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />} Enable (quick tunnel)
+            </button>
+            <button onClick={() => setShowNamed(v => !v)} disabled={busy} className="px-5 py-2.5 bg-[#0F0F1A] border border-white/10 text-gray-300 rounded-lg text-sm hover:bg-white/5 disabled:opacity-50">
+              Use my own domain
+            </button>
+          </div>
+        )}
+
+        {!running && showNamed && (
+          <form onSubmit={namedStart} className="mt-5 space-y-3 border-t border-white/5 pt-5">
+            <p className="text-xs text-gray-400">Create a persistent tunnel on your Cloudflare domain. Needs an API token with Tunnel + DNS edit permissions.</p>
+            {(['hostname', 'apiToken', 'accountId', 'zoneId'] as const).map(field => (
+              <input
+                key={field}
+                type={field === 'apiToken' ? 'password' : 'text'}
+                value={named[field]}
+                onChange={e => setNamed({ ...named, [field]: e.target.value })}
+                placeholder={{
+                  hostname: 'Hostname (e.g. dev.yourdomain.com)',
+                  apiToken: 'Cloudflare API token',
+                  accountId: 'Account ID',
+                  zoneId: 'Zone ID',
+                }[field]}
+                className="w-full bg-[#0F0F1A] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:border-[#6C9EFF] focus:outline-none"
+              />
+            ))}
+            <button type="submit" disabled={busy || !named.hostname || !named.apiToken || !named.accountId || !named.zoneId} className="flex items-center gap-2 px-5 py-2.5 bg-[#4ECDC4] text-[#0b0b16] rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />} Create &amp; start
+            </button>
+          </form>
+        )}
+
+        {!status?.installed && !running && (
+          <p className="text-xs text-gray-500 mt-4">cloudflared isn't installed yet — it will be downloaded automatically the first time you enable remote access.</p>
+        )}
       </div>
     </div>
   );
