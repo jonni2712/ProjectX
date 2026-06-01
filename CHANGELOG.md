@@ -5,6 +5,29 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Mobile app 1.0.1 - 2026-06-01
+
+### Added
+- **Multi-server support**: the app now stores a list of servers (`ServerProfile`
+  + `ServerStore`, encrypted at rest) instead of a single URL. A legacy
+  `server_url` is migrated automatically on first launch.
+- **QR pairing**: scan a server's QR code (a plain http(s) URL or a
+  `{"name","url"}` payload) to add it — from the login screen or the server list
+  (`qr_scan_screen.dart`, via `mobile_scanner`). Added the `CAMERA` permission.
+- **Server list screen**: add manually, scan QR, select, and delete saved servers.
+- **Onboarding screen**: a one-time first-run intro shown when no servers exist.
+
+### Changed
+- Login screen shows the current server, a "Manage servers" entry and an inline
+  QR-scan button; the entered server is remembered for next time.
+- Android app label is now "ProjectX"; app version bumped to 1.0.1+2.
+
+### TODO (follow-ups)
+- App icon assets + `flutter_launcher_icons`; offline/retry handling
+  (`connectivity_plus`); iOS project (`flutter create --platforms ios`).
+- Not compiled in this environment (no Flutter SDK) — run `flutter pub get`
+  and build to verify.
+
 ## [1.1.3] - 2026-06-01
 
 ### Added

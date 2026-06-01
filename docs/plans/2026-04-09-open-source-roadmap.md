@@ -52,15 +52,15 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 
 | File | Modifica | Complessità |
 |------|----------|-------------|
-| `flutter_app/lib/screens/onboarding_screen.dart` | **NUOVO** - Guida primo avvio | M |
-| `flutter_app/lib/screens/server_list_screen.dart` | **NUOVO** - Lista server salvati, QR scanner | L |
-| `flutter_app/lib/screens/setup_guide_screen.dart` | **NUOVO** - Guida in-app configurazione server | M |
-| `flutter_app/lib/config/api_config.dart` | Multi-server support | M |
-| `flutter_app/lib/services/api_service.dart` | Error handling, retry, offline mode | M |
-| `flutter_app/pubspec.yaml` | Aggiungere mobile_scanner, connectivity_plus, flutter_markdown | S |
-| AndroidManifest.xml | Label "ProjectX", nuovo applicationId | S |
-| `flutter_app/assets/icon/` | **NUOVO** - App icon | M |
-| `flutter create --platforms ios .` | Generare progetto iOS | L |
+| `flutter_app/lib/screens/onboarding_screen.dart` | ✅ FATTO (app 1.0.1) - Guida primo avvio (mostrata una volta) | M |
+| `flutter_app/lib/screens/server_list_screen.dart` | ✅ FATTO (app 1.0.1) - Lista server salvati + add manuale + QR scanner (`qr_scan_screen.dart`) | L |
+| `flutter_app/lib/screens/setup_guide_screen.dart` | ⏳ coperto da onboarding + server_list per ora | M |
+| `flutter_app/lib/config/api_config.dart` | ✅ FATTO (app 1.0.1) - Multi-server via `ServerStore` + `ServerProfile` (migra legacy `server_url`) | M |
+| `flutter_app/lib/services/api_service.dart` | ⏳ Error handling/retry/offline — TODO (serve `connectivity_plus`) | M |
+| `flutter_app/pubspec.yaml` | ✅ mobile_scanner aggiunto. connectivity_plus/flutter_markdown ⏳ TODO | S |
+| AndroidManifest.xml | ✅ FATTO - Label "ProjectX" + permesso CAMERA (applicationId invariato) | S |
+| `flutter_app/assets/icon/` | ⏳ TODO - serve asset PNG + flutter_launcher_icons | M |
+| `flutter create --platforms ios .` | ⏳ TODO - progetto iOS | L |
 
 ---
 

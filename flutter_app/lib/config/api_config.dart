@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/server_store.dart';
 
 class ApiConfig {
   static String _baseUrl = 'http://192.168.1.100:3000';
@@ -8,6 +9,13 @@ class ApiConfig {
   static String get wsUrl => _baseUrl.replaceFirst('http', 'ws');
 
   static Future<void> init() async {
+    // Prefer the currently-selected server from the multi-server store; this
+    // also migrates a legacy single `server_url` into the store on first run.
+    final current = await ServerStore.currentServer();
+    if (current != null) {
+      _baseUrl = current.url;
+      return;
+    }
     final saved = await _storage.read(key: 'server_url');
     if (saved != null && saved.isNotEmpty) {
       _baseUrl = saved;
