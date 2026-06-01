@@ -12,7 +12,7 @@ import { saveStoredConfig, type StoredConfig } from './config-store.js';
 // seeds the admin user (importing the DB layer only after config.json exists,
 // so config.ts then validates cleanly), and hands off to the real server.
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 12; // aligned with the configured server's policy
 function passwordProblem(password: string): string | null {
   if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
     return `must be at least ${MIN_PASSWORD_LENGTH} characters`;
@@ -117,6 +117,13 @@ export async function runSetupServer(): Promise<void> {
   // (desktop app / local browser). Override with PROJECTX_SETUP_HOST if needed.
   const host = process.env.PROJECTX_SETUP_HOST || '127.0.0.1';
 
+  // SECURITY: when setup is exposed beyond loopback, whoever reaches /setup first
+  // would seize admin + choose the JWT secret. Require an out-of-band token
+  // (printed to the server console) in the /setup body in that case. On loopback
+  // we trust local access (the desktop/web first-run path).
+  const isLoopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+  const setupToken = isLoopback ? null : randomBytes(18).toString('hex');
+
   const fastify = Fastify({ logger: false });
   let handoffStarted = false;
   let configured = false;
@@ -133,6 +140,10 @@ export async function runSetupServer(): Promise<void> {
 
   fastify.post('/setup', async (request, reply) => {
     const body = (request.body ?? {}) as Record<string, string>;
+    // When exposed beyond loopback, require the out-of-band setup token.
+    if (setupToken && body.setupToken !== setupToken) {
+      return reply.status(403).send({ success: false, error: 'Invalid or missing setup token' });
+    }
     const workspaceRoot = resolve((body.workspaceRoot || '').trim() || resolve(homedir(), 'projectx-workspace'));
     const adminUsername = (body.adminUsername || 'admin').trim() || 'admin';
     const adminPassword = body.adminPassword || '';
@@ -205,4 +216,10 @@ export async function runSetupServer(): Promise<void> {
   await fastify.listen({ port, host });
   console.log(`\n  ProjectX is not configured yet.`);
   console.log(`  Open the setup page in your browser:  http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}\n`);
+  if (setupToken) {
+    console.warn(`  [security] Setup is exposed on a non-loopback interface (${host}).`);
+    console.warn(`  [security] A setup token is REQUIRED to complete setup:\n`);
+    console.warn(`      PROJECTX setup token: ${setupToken}\n`);
+    console.warn(`  Paste it into the "setup token" field (or include "setupToken" in the POST body).\n`);
+  }
 }

@@ -54,7 +54,8 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     const contentType = mimeTypes[ext] || 'application/octet-stream';
     const buffer = await readFileBinary(path);
     reply.header('Content-Type', contentType);
-    reply.header('Access-Control-Allow-Origin', '*');
+    // No wildcard CORS here — workspace file bytes must follow the same origin
+    // policy as the rest of the API (handled by the global CORS plugin).
     return reply.send(buffer);
   });
 

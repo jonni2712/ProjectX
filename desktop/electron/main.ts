@@ -388,7 +388,17 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('open-external', async (_event, url: string) => {
-    await shell.openExternal(url);
+    // Only ever hand http(s) URLs to the OS — never file://, smb://, custom
+    // protocol handlers, etc. (a compromised renderer could otherwise trigger
+    // local/native handlers).
+    try {
+      const u = new URL(url);
+      if (u.protocol === 'http:' || u.protocol === 'https:') {
+        await shell.openExternal(url);
+      }
+    } catch {
+      /* invalid URL — ignore */
+    }
   });
 
   ipcMain.handle('get-app-version', () => app.getVersion());

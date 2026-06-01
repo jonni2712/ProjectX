@@ -31,9 +31,15 @@ export function startClaudeCliSession(cwd: string, prompt: string): string {
   const absPath = safePath(cwd);
   const id = uuid();
 
+  // Strip server secrets before handing the environment to the Claude CLI
+  // subprocess (same set as terminal.service). The CLI authenticates via its
+  // own `claude login` credentials, not the server's env, so a malicious prompt
+  // can't coax it into echoing the JWT signing secret / API key.
+  const { JWT_SECRET, AUTH_PASSWORD_HASH, AUTH_PASSWORD, ANTHROPIC_API_KEY, ...safeEnv } = process.env;
+
   const proc = spawn('claude', ['--print', '--', prompt], {
     cwd: absPath,
-    env: { ...process.env },
+    env: safeEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 

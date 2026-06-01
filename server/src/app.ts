@@ -49,6 +49,16 @@ await fastify.register(fastifyCors, {
 
 await fastify.register(fastifyRateLimit, {
   global: false, // Only apply where configured
+  // Behind a Cloudflare tunnel every request arrives from cloudflared/loopback,
+  // so the default socket-IP key would lump all clients into one bucket. Key on
+  // Cloudflare's CF-Connecting-IP when present (set by Cloudflare, not
+  // spoofable through the tunnel); fall back to the socket IP. We deliberately
+  // do NOT trust X-Forwarded-For.
+  keyGenerator: (req) => {
+    const cf = req.headers['cf-connecting-ip'];
+    if (typeof cf === 'string' && cf.length > 0 && cf.length < 64) return cf;
+    return req.ip;
+  },
 });
 
 await fastify.register(fastifyMultipart, {
@@ -63,11 +73,15 @@ fastify.setErrorHandler((error: FastifyError, request, reply) => {
   if (error instanceof PathTraversalError) {
     return reply.status(403).send({ success: false, error: 'Access denied: path outside workspace' });
   }
-  fastify.log.error(error);
-  reply.status(error.statusCode ?? 500).send({
-    success: false,
-    error: error.message || 'Internal server error',
-  });
+  const status = error.statusCode ?? 500;
+  // Never leak internal error detail (fs paths, git stderr, stack) to clients on
+  // 5xx — log it server-side and return a generic message. 4xx errors (e.g.
+  // schema validation) carry safe, useful messages, so those pass through.
+  if (status >= 500) {
+    fastify.log.error(error);
+    return reply.status(status).send({ success: false, error: 'Internal server error' });
+  }
+  reply.status(status).send({ success: false, error: error.message || 'Request failed' });
 });
 
 // --- Routes ---

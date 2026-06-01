@@ -8,6 +8,16 @@ import { issueWsTicket } from '../plugins/auth.js';
 
 const MIN_PASSWORD_LENGTH = 12;
 
+// Constant-ish dummy hash: when an unknown username logs in we still run a
+// bcrypt.compare against this so the response time doesn't reveal whether the
+// username exists (prevents username enumeration via timing).
+const DUMMY_HASH = bcrypt.hashSync('projectx-dummy-password-placeholder', 12);
+
+// Per-route rate-limit config (uses the global keyGenerator from app.ts).
+const authRateLimit = {
+  rateLimit: { max: config.rateLimit.loginMax, timeWindow: config.rateLimit.loginWindow },
+};
+
 /**
  * Returns null if the password is acceptable, or an error message string.
  * We deliberately don't enforce complex character classes (which often push
@@ -50,6 +60,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
     const user = getUserByUsername(username);
     if (!user || !user.active) {
+      // Run a dummy compare so timing doesn't leak whether the user exists.
+      await bcrypt.compare(password, DUMMY_HASH);
       audit('anonymous', 'login_failed', username, 'Unknown user');
       return reply.status(401).send({ success: false, error: 'Invalid credentials' });
     }
@@ -181,6 +193,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // PATCH /auth/password — change own password
   fastify.patch('/auth/password', {
     onRequest: [fastify.authenticate],
+    config: authRateLimit,
     schema: {
       body: {
         type: 'object',
@@ -237,6 +250,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // POST /auth/users — admin only, create new user
   fastify.post('/auth/users', {
     onRequest: [fastify.requireAdmin],
+    config: authRateLimit,
     schema: {
       body: {
         type: 'object',

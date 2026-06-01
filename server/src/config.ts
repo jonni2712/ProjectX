@@ -170,9 +170,12 @@ if (!configFileExists()) {
  * - anything listed in config.publicOrigins: accepted
  * - everything else: rejected
  */
+// Exact host match (any port) — NOT startsWith, which would also accept
+// "http://localhost.attacker.com".
+const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
-  if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) return true;
-  if (origin.startsWith('https://localhost') || origin.startsWith('https://127.0.0.1')) return true;
+  if (LOCALHOST_ORIGIN.test(origin)) return true;
   return config.publicOrigins.includes(origin);
 }

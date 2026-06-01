@@ -36,6 +36,10 @@ export function startFileWatcher() {
     ignoreInitial: true,
     depth: 3,
     usePolling: false,
+    // Do NOT follow symlinks: a symlink inside the workspace pointing outside
+    // (e.g. -> /etc) would otherwise make the watcher recurse out of the
+    // sandbox AND crash the process on the first EACCES.
+    followSymlinks: false,
     awaitWriteFinish: {
       stabilityThreshold: 300,
       pollInterval: 100,
@@ -72,6 +76,11 @@ export function startFileWatcher() {
       }
     }, config.watcherDebounce));
   };
+
+  // A watcher 'error' (e.g. EACCES on a directory) must NEVER crash the server.
+  watcher.on('error', (err) => {
+    console.warn(`[file-watcher] non-fatal watch error: ${(err as Error)?.message ?? err}`);
+  });
 
   watcher.on('add', (path) => emitEvent('created', path));
   watcher.on('change', (path) => emitEvent('changed', path));

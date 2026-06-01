@@ -5,6 +5,50 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.9] - 2026-06-01 (server) / Desktop 1.1.12 — security hardening (code)
+
+Code-level hardening from the security audit (the network-exposed surface):
+
+### Security
+- **Symlink sandbox escape (server)** — `path-guard` now resolves the real path
+  of the deepest existing component and asserts it stays within the (real)
+  workspace root. A workspace symlink to `/etc` or `~/.ssh` (creatable via the
+  terminal) can no longer be read/copied/zipped. Verified: listing through such
+  a symlink returns 403, normal paths still work.
+- **File-watcher symlink escape + crash** — chokidar now runs with
+  `followSymlinks:false` and an `error` handler, so an escaping symlink can no
+  longer make the watcher recurse out of the workspace **or crash the server**
+  on `EACCES` (was a one-line DoS). Verified the server survives a `-> /etc`
+  symlink in the workspace.
+- **Git argument injection (C2)** — reject any branch/remote/file value starting
+  with `-` (option injection), and pass `--` before file args in diff; on top of
+  the `simple-git` upgrade.
+- **Claude CLI env leak (M1)** — strip `JWT_SECRET`/`AUTH_PASSWORD_HASH`/
+  `AUTH_PASSWORD`/`ANTHROPIC_API_KEY` from the Claude subprocess env (matching
+  the terminal), so a prompt can't exfiltrate server secrets.
+- **Rate limiting (H2)** — key the limiter on Cloudflare's `CF-Connecting-IP`
+  when tunneled (never trusting `X-Forwarded-For`), and add limits to
+  `PATCH /auth/password` and `POST /auth/users`.
+- **First-run setup lockdown (H1)** — when setup is exposed on a non-loopback
+  interface, an out-of-band **setup token** (printed to the console) is required
+  in the `/setup` body; password floor aligned to 12 chars.
+- **Login username-enumeration timing (M6)** — run a dummy bcrypt compare for
+  unknown users so response time doesn't reveal account existence.
+- **CORS (M5)** — match `localhost`/`127.0.0.1` by exact host (any port) instead
+  of `startsWith` (which accepted `localhost.attacker.com`); dropped the wildcard
+  `Access-Control-Allow-Origin: *` on `/files/serve`.
+- **Error disclosure (L2)** — 5xx responses now return a generic message (detail
+  logged server-side only); 4xx validation messages still pass through.
+- **Audit-log authz (L3)** — `/projects/audit` is now admin-only.
+- **Electron `open-external` (L7)** — only `http(s)` URLs are handed to the OS;
+  `file://`/custom-protocol URLs from the renderer are ignored.
+
+### Deferred (documented)
+- Electron major upgrade (H4) — risks the native-module ABI we pinned; the
+  renderer only loads our own app, so lower exposure. Revisit with a coordinated
+  better-sqlite3 upgrade.
+- WS message schema/clamps (M2) and `/config/update`→config.json repoint (M3).
+
 ## [1.1.8] - 2026-06-01 (server) — security: dependency CVEs
 
 ### Security

@@ -1,4 +1,5 @@
-import { resolve, relative, normalize } from 'path';
+import { resolve, relative, normalize, dirname, isAbsolute } from 'path';
+import { realpathSync, existsSync } from 'fs';
 import { config } from '../config.js';
 
 /**
@@ -79,7 +80,39 @@ export function safePath(userPath: string): string {
     throw new PathTraversalError(userPath);
   }
 
+  // Symlink escape check: a symlink INSIDE the workspace (e.g. created via the
+  // terminal) could point OUTSIDE it (~/.ssh, /etc). The string checks above
+  // only validate the literal path, not where symlinks resolve to. Resolve the
+  // real path of the deepest existing component and assert it stays within the
+  // (real) workspace root.
+  assertNoSymlinkEscape(absolute);
+
   return absolute;
+}
+
+function assertNoSymlinkEscape(absolute: string): void {
+  let realRoot: string;
+  try {
+    realRoot = realpathSync(config.workspaceRoot);
+  } catch {
+    return; // workspace root missing — startup validation covers this
+  }
+  // Walk up to the deepest path component that actually exists (the target may
+  // be a not-yet-created file).
+  let existing = absolute;
+  while (!existsSync(existing) && existing !== dirname(existing)) {
+    existing = dirname(existing);
+  }
+  let real: string;
+  try {
+    real = realpathSync(existing);
+  } catch {
+    return;
+  }
+  const rel = relative(realRoot, real);
+  if (rel !== '' && (rel.startsWith('..') || isAbsolute(rel))) {
+    throw new PathTraversalError(`symlink escapes workspace: ${absolute}`);
+  }
 }
 
 /**

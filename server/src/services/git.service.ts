@@ -7,6 +7,20 @@ function getGit(repoPath: string): SimpleGit {
   return simpleGit(absPath);
 }
 
+/**
+ * Reject any user-supplied value that could be parsed by git as an OPTION
+ * (e.g. `--upload-pack=...`, `--exec`, `-o`), which is the argument-injection
+ * vector behind several git RCEs. Branch/remote/file/path values must never
+ * start with "-". Defence-in-depth on top of the simple-git upgrade.
+ */
+function rejectOptionLike(...values: (string | undefined)[]): void {
+  for (const v of values) {
+    if (typeof v === 'string' && v.trimStart().startsWith('-')) {
+      throw new Error('Invalid git argument: values must not start with "-"');
+    }
+  }
+}
+
 export async function gitStatus(repoPath: string): Promise<GitStatus> {
   const git = getGit(repoPath);
   const status = await git.status();
@@ -24,11 +38,13 @@ export async function gitStatus(repoPath: string): Promise<GitStatus> {
 }
 
 export async function gitAdd(repoPath: string, files: string[]): Promise<void> {
+  rejectOptionLike(...files);
   const git = getGit(repoPath);
   await git.add(files);
 }
 
 export async function gitCommit(repoPath: string, message: string, files?: string[]): Promise<string> {
+  rejectOptionLike(...(files ?? []));
   const git = getGit(repoPath);
   if (files && files.length > 0) {
     await git.add(files);
@@ -38,6 +54,7 @@ export async function gitCommit(repoPath: string, message: string, files?: strin
 }
 
 export async function gitPush(repoPath: string, remote: string = 'origin', branch?: string): Promise<void> {
+  rejectOptionLike(remote, branch);
   const git = getGit(repoPath);
   if (branch) {
     await git.push(remote, branch);
@@ -47,6 +64,7 @@ export async function gitPush(repoPath: string, remote: string = 'origin', branc
 }
 
 export async function gitPull(repoPath: string, remote: string = 'origin', branch?: string): Promise<string> {
+  rejectOptionLike(remote, branch);
   const git = getGit(repoPath);
   const result = branch
     ? await git.pull(remote, branch)
@@ -76,6 +94,7 @@ export async function gitBranches(repoPath: string): Promise<{ current: string; 
 }
 
 export async function gitCheckout(repoPath: string, branch: string): Promise<void> {
+  rejectOptionLike(branch);
   const git = getGit(repoPath);
   await git.checkout(branch);
 }
@@ -86,17 +105,19 @@ export async function gitDiscard(repoPath: string, files: string[]): Promise<voi
 }
 
 export async function gitDiff(repoPath: string, file?: string): Promise<string> {
+  rejectOptionLike(file);
   const git = getGit(repoPath);
   if (file) {
-    return await git.diff([file]);
+    return await git.diff(['--', file]);
   }
   return await git.diff();
 }
 
 export async function gitDiffStaged(repoPath: string, file?: string): Promise<string> {
+  rejectOptionLike(file);
   const git = getGit(repoPath);
   if (file) {
-    return await git.diff(['--cached', file]);
+    return await git.diff(['--cached', '--', file]);
   }
   return await git.diff(['--cached']);
 }

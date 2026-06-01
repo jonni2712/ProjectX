@@ -261,13 +261,34 @@ GitHub Actions builds Windows (.exe), macOS (.dmg), and Android (.apk) automatic
 
 ## Security
 
-- All passwords hashed with bcrypt (12 rounds)
-- JWT tokens with configurable expiry and refresh rotation
-- WebSocket authentication via single-use tickets (30s TTL)
-- Path traversal protection on all file operations
-- Rate limiting on authentication endpoints
-- Audit logging for all sensitive operations
-- Traffic encrypted via Cloudflare Tunnel (HTTPS/WSS)
+ProjectX intentionally grants **authenticated** users a shell, file, git and AI
+access on the host, so the security model focuses on keeping unauthenticated
+parties out, preventing low-privilege escalation, and confining everything to
+the workspace.
+
+- **Auth** — bcrypt (12 rounds, 12-char minimum), JWT pinned to **HS256** with
+  expiry + refresh-token rotation, and instant **revocation** via a per-user
+  `token_version` (bumped on logout / password change / role change /
+  deactivation). Login does a constant-time dummy compare to avoid username
+  enumeration.
+- **WebSocket** — single-use tickets (short TTL), origin checks, and per-user
+  ownership on terminal/Claude sessions.
+- **Workspace confinement** — every path is validated (`..`, absolute, UNC, NUL,
+  protected segments like `.git`/`.ssh`/`.env`) **and symlink-resolved** so a
+  symlink can't escape the workspace; the file-watcher doesn't follow symlinks.
+- **Command safety** — git arguments are rejected if they look like options
+  (`-…` injection); the Claude subprocess runs with server secrets stripped from
+  its environment.
+- **Rate limiting** — tunnel-aware (keyed on `CF-Connecting-IP`, never
+  `X-Forwarded-For`) on login, refresh, password-change and user-creation.
+- **First-run setup** — loopback-only by default; if exposed beyond loopback it
+  requires an out-of-band setup token.
+- **Hardening** — generic 5xx error messages (no internal-path leakage),
+  admin-only audit log, strict CORS (exact localhost host match, no wildcard),
+  `cloudflared` binary SHA-256 pinning, secrets stored `0600`.
+- **Transport** — encrypted HTTPS/WSS via Cloudflare Tunnel; outbound-only.
+- **Supply chain** — dependencies kept patched (`npm audit`); JWT/RCE-class CVEs
+  tracked and upgraded.
 
 Found a vulnerability? Please read our [Security Policy](SECURITY.md).
 

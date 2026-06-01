@@ -46,11 +46,12 @@ export default async function projectRoutes(fastify: FastifyInstance) {
     return { success: true };
   });
 
-  // GET /projects/audit?limit=50
-  fastify.get('/projects/audit', async (request: FastifyRequest<{
-    Querystring: { limit?: string }
-  }>) => {
-    const limit = parseInt(request.query.limit || '50');
+  // GET /projects/audit?limit=50 — admin only (the audit log contains every
+  // user's actions and file paths; a regular user must not read it).
+  fastify.get<{ Querystring: { limit?: string } }>('/projects/audit', {
+    onRequest: [fastify.requireAdmin],
+  }, async (request) => {
+    const limit = Math.min(Math.max(parseInt(request.query.limit || '50') || 50, 1), 500);
     const entries = db.prepare(
       'SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?'
     ).all(limit);
