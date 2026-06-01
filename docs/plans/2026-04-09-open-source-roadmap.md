@@ -35,7 +35,7 @@ Trasformare ProjectX da tool personale a piattaforma open source pubblicata su P
 | File | Modifica | Complessità |
 |------|----------|-------------|
 | `server/src/setup.ts` | Riscrivere come wizard cross-platform (inquirer/prompts) | L |
-| `server/src/config-store.ts` | **NUOVO** - Config JSON (`data/config.json`) al posto di .env | M |
+| `server/src/config-store.ts` | ✅ FATTO (v1.1.1) - Config JSON (`data/config.json`), precedenza env > json > default, migrazione automatica al primo avvio | M |
 | `server/src/routes/setup.ts` | **NUOVO** - Web UI per setup al primo avvio | L |
 | `server/src/services/cloudflare.service.ts` | **NUOVO** - Auto-install cloudflared, crea tunnel via API | L |
 | `setup.sh` / `setup.bat` / `setup.ps1` | Script cross-platform che lancia il wizard | M |

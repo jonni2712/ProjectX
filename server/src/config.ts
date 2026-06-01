@@ -1,5 +1,6 @@
 import { resolve } from 'path';
 import { existsSync } from 'fs';
+import { loadStoredConfig, saveStoredConfig, configFileExists } from './config-store.js';
 
 // Parse PUBLIC_ORIGIN(S): comma-separated list of tunnel/public origins allowed by CORS.
 // Example: PUBLIC_ORIGINS=https://myapp.trycloudflare.com,https://projectx.mydomain.com
@@ -8,35 +9,64 @@ function parseOrigins(raw: string | undefined): string[] {
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
+// Persistent config store (data/config.json). Resolution precedence for every
+// value is: environment variable (override) > config.json > built-in default.
+// This keeps existing .env-based deployments working unchanged while making
+// config.json the durable source of truth for fresh installs and the wizard.
+const stored = loadStoredConfig();
+
+// An env var counts as "set" only when present AND non-empty — an empty string
+// (common with a stub .env line like `JWT_SECRET=`) must NOT shadow config.json.
+function pickStr(env: string | undefined, fromStore: string | undefined, def: string): string {
+  if (env !== undefined && env !== '') return env;
+  if (fromStore !== undefined && fromStore !== '') return fromStore;
+  return def;
+}
+
+function pickInt(env: string | undefined, fromStore: number | undefined, def: number): number {
+  if (env !== undefined && env !== '') return parseInt(env, 10);
+  if (fromStore !== undefined) return fromStore;
+  return def;
+}
+
+function pickList(env: string | undefined, fromStore: string[] | undefined): string[] {
+  if (env !== undefined && env !== '') return parseOrigins(env);
+  if (Array.isArray(fromStore)) return fromStore;
+  return [];
+}
+
 export const config = {
-  port: parseInt(process.env.PORT || '3000', 10),
+  port: pickInt(process.env.PORT, stored.port, 3000),
   // Default to loopback only. Users who want LAN/tunnel exposure must opt in
-  // by setting HOST=0.0.0.0 explicitly in .env.
-  host: process.env.HOST || '127.0.0.1',
-  workspaceRoot: resolve(process.env.WORKSPACE_ROOT || '/github'),
+  // by setting HOST=0.0.0.0 explicitly.
+  host: pickStr(process.env.HOST, stored.host, '127.0.0.1'),
+  workspaceRoot: resolve(pickStr(process.env.WORKSPACE_ROOT, stored.workspaceRoot, '/github')),
   jwt: {
-    secret: process.env.JWT_SECRET || 'change-me-in-production',
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-    refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+    secret: pickStr(process.env.JWT_SECRET, stored.jwt?.secret, 'change-me-in-production'),
+    expiresIn: pickStr(process.env.JWT_EXPIRES_IN, stored.jwt?.expiresIn, '24h'),
+    refreshExpiresIn: pickStr(process.env.REFRESH_TOKEN_EXPIRES_IN, stored.jwt?.refreshExpiresIn, '7d'),
   },
+  // Auth credentials remain env-only and are NOT persisted to config.json: they
+  // exist solely to seed the first admin into the users table on a fresh DB
+  // (see db/database.ts). The users table is the source of truth thereafter.
   auth: {
     username: process.env.AUTH_USERNAME || 'admin',
     passwordHash: process.env.AUTH_PASSWORD_HASH || '',
   },
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  anthropicApiKey: pickStr(process.env.ANTHROPIC_API_KEY, stored.anthropicApiKey, ''),
   rateLimit: {
-    loginMax: parseInt(process.env.LOGIN_RATE_LIMIT_MAX || '5', 10),
-    loginWindow: parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW || '300000', 10),
+    loginMax: pickInt(process.env.LOGIN_RATE_LIMIT_MAX, stored.rateLimit?.loginMax, 5),
+    loginWindow: pickInt(process.env.LOGIN_RATE_LIMIT_WINDOW, stored.rateLimit?.loginWindow, 300000),
   },
-  watcherDebounce: parseInt(process.env.WATCHER_DEBOUNCE || '500', 10),
+  watcherDebounce: pickInt(process.env.WATCHER_DEBOUNCE, stored.watcherDebounce, 500),
   // CORS: list of extra origins allowed in addition to localhost/127.0.0.1.
-  // Set this to your Cloudflare tunnel domain (or custom domain) in .env.
-  publicOrigins: parseOrigins(process.env.PUBLIC_ORIGINS),
+  // Set this to your Cloudflare tunnel domain (or custom domain).
+  publicOrigins: pickList(process.env.PUBLIC_ORIGINS, stored.publicOrigins),
   // Optional supply-chain hardening for cloudflared: comma-separated list of
   // SHA256 hashes (lowercase hex) that the local cloudflared binary MUST match
   // before the server will start the tunnel. If empty, no verification is
   // performed but the detected hash is logged for observability.
-  cloudflaredExpectedHashes: parseOrigins(process.env.CLOUDFLARED_EXPECTED_SHA256)
+  cloudflaredExpectedHashes: pickList(process.env.CLOUDFLARED_EXPECTED_SHA256, stored.cloudflaredExpectedHashes)
     .map(h => h.toLowerCase()),
 } as const;
 
@@ -99,6 +129,38 @@ if (config.host === '0.0.0.0' && config.publicOrigins.length === 0) {
     '         The server will accept LAN connections but CORS will reject them.\n' +
     '         Set PUBLIC_ORIGINS=https://your-tunnel-domain in .env, or use HOST=127.0.0.1.'
   );
+}
+
+// First-run migration: snapshot the validated, effective configuration into
+// data/config.json so future runs are self-contained and the setup wizard / web
+// setup UI can read & write a single source of truth instead of editing .env by
+// hand. Runs only when config.json does not yet exist, and only AFTER the JWT
+// and workspace validations above have passed — so we never persist a config
+// the server would refuse to start with. .env continues to override at runtime.
+if (!configFileExists()) {
+  try {
+    saveStoredConfig({
+      port: config.port,
+      host: config.host,
+      workspaceRoot: config.workspaceRoot,
+      jwt: {
+        secret: config.jwt.secret,
+        expiresIn: config.jwt.expiresIn,
+        refreshExpiresIn: config.jwt.refreshExpiresIn,
+      },
+      anthropicApiKey: config.anthropicApiKey,
+      rateLimit: {
+        loginMax: config.rateLimit.loginMax,
+        loginWindow: config.rateLimit.loginWindow,
+      },
+      watcherDebounce: config.watcherDebounce,
+      publicOrigins: [...config.publicOrigins],
+      cloudflaredExpectedHashes: [...config.cloudflaredExpectedHashes],
+    });
+    console.log('[config] Migrated configuration to data/config.json — future runs no longer require .env for these values.');
+  } catch (err) {
+    console.warn(`[config] Could not write data/config.json (continuing with env/defaults): ${(err as Error).message}`);
+  }
 }
 
 /**
