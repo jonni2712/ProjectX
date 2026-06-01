@@ -32,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.8 - 2026-06-01
+
+### Fixed / UI
+- **macOS window controls**: the traffic-light buttons (close/zoom/minimize)
+  overlapped the "ProjectX" logo in the sidebar header. Padded the header to the
+  right of the lights on macOS and set `trafficLightPosition` for clean placement.
+- **Workspace display**: the dashboard "Workspace" card rendered the full path as
+  a huge bold string and overflowed. Now it shows the **folder name** prominently
+  with the **full path** as a truncated subtitle + tooltip; all stat cards
+  truncate cleanly (`min-w-0`).
+
 ## Desktop app 1.1.7 - 2026-06-01
 
 ### Added

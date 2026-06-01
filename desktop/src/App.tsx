@@ -10,6 +10,10 @@ import LogsPage from './pages/Logs';
 import SettingsPage from './pages/Settings';
 import SetupWizard from './pages/SetupWizard';
 
+// On macOS the window uses hiddenInset traffic lights that sit over the top-left
+// of the sidebar, so we pad the sidebar header to the right of them.
+const isMac = typeof window !== 'undefined' && window.electronAPI?.platform === 'darwin';
+
 const navItems = [
   { to: '/', icon: Server, label: 'Dashboard' },
   { to: '/users', icon: Users, label: 'Users' },
@@ -138,8 +142,8 @@ function AppContent() {
     <div className="flex h-screen bg-[#0F0F1A]">
       {/* Sidebar */}
       <aside className="w-56 bg-[#12122A] border-r border-white/5 flex flex-col">
-        {/* App title + drag area */}
-        <div className="drag-area h-12 flex items-center px-4 border-b border-white/5">
+        {/* App title + drag area (padded right of the macOS traffic lights) */}
+        <div className={`drag-area h-12 flex items-center border-b border-white/5 ${isMac ? 'pl-[78px] pr-4' : 'px-4'}`}>
           <div className="no-drag flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#6C9EFF] to-[#4ECDC4] flex items-center justify-center">
               <Server size={14} className="text-white" />

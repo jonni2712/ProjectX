@@ -3,19 +3,22 @@ import { Server, Users, HardDrive, Globe, QrCode, Clock, RefreshCw } from 'lucid
 import { api } from '../api';
 import QRCode from 'qrcode';
 
-function StatCard({ icon: Icon, label, value, color, loading }: { icon: any; label: string; value: string; color: string; loading?: boolean }) {
+function StatCard({ icon: Icon, label, value, color, loading, sub }: { icon: any; label: string; value: string; color: string; loading?: boolean; sub?: string }) {
   return (
-    <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-5">
+    <div className="bg-[#1A1A2E] rounded-xl border border-white/5 p-5 min-w-0">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}20` }}>
           <Icon size={18} style={{ color }} />
         </div>
-        <span className="text-sm text-gray-400">{label}</span>
+        <span className="text-sm text-gray-400 truncate">{label}</span>
       </div>
       {loading ? (
         <div className="h-8 w-24 bg-white/5 rounded animate-pulse" />
       ) : (
-        <p className="text-2xl font-bold text-white">{value}</p>
+        <>
+          <p className="text-2xl font-bold text-white truncate" title={sub || value}>{value}</p>
+          {sub && <p className="text-xs text-gray-500 font-mono truncate mt-1" title={sub}>{sub}</p>}
+        </>
       )}
     </div>
   );
@@ -73,6 +76,9 @@ export default function Dashboard() {
   const localUrl = health ? `http://localhost:${health.port || 3000}` : 'http://localhost:3000';
   const tunnelUrl = health?.tunnelDomain ? `https://${health.tunnelDomain}` : null;
   const workspace = health?.workspaceRoot || '--';
+  // Show the folder name prominently; keep the full path as a subtitle + tooltip.
+  const workspaceName =
+    workspace === '--' ? '--' : (workspace.replace(/\/+$/, '').split('/').filter(Boolean).pop() || workspace);
 
   return (
     <div className="p-8">
@@ -101,7 +107,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-4 mb-8">
         <StatCard icon={Server} label="Status" value={health ? 'Online' : '--'} color="#4ECDC4" loading={loading} />
         <StatCard icon={Users} label="Users" value={userCount !== null ? String(userCount) : '--'} color="#6C9EFF" loading={loading} />
-        <StatCard icon={HardDrive} label="Workspace" value={workspace} color="#FFE66D" loading={loading} />
+        <StatCard icon={HardDrive} label="Workspace" value={workspaceName} sub={workspace !== '--' ? workspace : undefined} color="#FFE66D" loading={loading} />
         <StatCard icon={Clock} label="Uptime" value={health?.uptime ? formatUptime(health.uptime) : '--'} color="#4ECDC4" loading={loading} />
       </div>
 

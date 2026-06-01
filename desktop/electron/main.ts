@@ -242,6 +242,9 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     titleBarStyle: 'hiddenInset',
+    // Inset the macOS traffic lights a touch so they sit cleanly in the sidebar
+    // header strip (ignored on Windows/Linux).
+    trafficLightPosition: { x: 14, y: 18 },
     backgroundColor: '#0F0F1A',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
