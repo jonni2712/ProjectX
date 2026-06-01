@@ -82,16 +82,41 @@ function startServer(): Promise<void> {
 
     // No .env is created here on purpose. On a fresh install the server boots
     // into first-run setup mode (answering /setup/status = configured:false),
-    // and the dashboard's SetupWizard configures it. Once configured, the
-    // server persists everything in data/config.json.
+    // and the dashboard's SetupWizard configures it.
 
-    appendLog(`[desktop] Running: ${command} ${args.join(' ')} in ${serverCwdResolved}`);
+    // Persist config.json + the SQLite DB in a writable, update-safe location
+    // (the app bundle in /Applications is read-only and signed). The server
+    // honours PROJECTX_DATA_DIR.
+    const dataDir = path.join(app.getPath('userData'), 'data');
+    try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* best effort */ }
+    const serverEnv = { ...process.env, PROJECTX_DATA_DIR: dataDir };
 
-    serverProcess = spawn(command, args, {
+    // GUI apps launched from Finder/Explorer don't inherit the user's shell
+    // PATH, so `node` (often installed via nvm/Homebrew/fnm) isn't found and the
+    // server can't start. On macOS/Linux we launch through a login shell so the
+    // profile is sourced and PATH is complete. On Windows the default PATH is
+    // adequate, so we keep the previous shell:true behaviour.
+    let spawnCmd: string;
+    let spawnArgs: string[];
+    let useShell = false;
+    if (process.platform === 'win32') {
+      spawnCmd = command;
+      spawnArgs = args;
+      useShell = true;
+    } else {
+      const loginShell = process.env.SHELL || '/bin/zsh';
+      const quoted = [command, ...args].map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');
+      spawnCmd = loginShell;
+      spawnArgs = ['-lc', `exec ${quoted}`];
+    }
+
+    appendLog(`[desktop] Running: ${spawnCmd} ${spawnArgs.join(' ')} in ${serverCwdResolved} (data: ${dataDir})`);
+
+    serverProcess = spawn(spawnCmd, spawnArgs, {
       cwd: serverCwdResolved,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true,
-      env: { ...process.env },
+      shell: useShell,
+      env: serverEnv,
     });
 
     serverStartTime = Date.now();

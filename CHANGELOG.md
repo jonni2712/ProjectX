@@ -32,6 +32,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## [1.1.7] - 2026-06-01 (server) / Desktop app 1.1.3 — packaging fix
+
+### Fixed
+- **Desktop app couldn't start the bundled server** on macOS: GUI apps don't
+  inherit the user's shell PATH, so `node` (nvm/Homebrew/fnm) wasn't found and
+  the server never came up ("Server Offline"). The app now launches the server
+  through a **login shell** (`$SHELL -lc`) on macOS/Linux so PATH is complete.
+- **Data was being written inside the app bundle** (read-only & signed in
+  /Applications). The server now honours **`PROJECTX_DATA_DIR`**, and the desktop
+  app points it at `app.getPath('userData')`, so `config.json` + the SQLite DB
+  live in `~/Library/Application Support/ProjectX Server/data` — writable and
+  preserved across updates.
+
+### Notes
+- Release tag is now `v1.1.3` to match the desktop app version that
+  electron-builder embeds (avoids the earlier tag/release mismatch).
+
 ## [1.1.6] - 2026-06-01
 
 ### Added

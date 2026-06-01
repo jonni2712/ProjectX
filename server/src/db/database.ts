@@ -4,8 +4,11 @@ import { mkdirSync } from 'fs';
 import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
 
-// Ensure data directory exists
-const dataDir = resolve(import.meta.dirname || '.', '../../data');
+// Ensure data directory exists. PROJECTX_DATA_DIR overrides the default
+// (server/data) — see config-store.ts; both must resolve to the same place.
+const dataDir = process.env.PROJECTX_DATA_DIR
+  ? resolve(process.env.PROJECTX_DATA_DIR)
+  : resolve(import.meta.dirname || '.', '../../data');
 mkdirSync(dataDir, { recursive: true });
 
 const dbPath = resolve(dataDir, 'projectx.db');

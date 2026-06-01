@@ -9,7 +9,13 @@ import { resolve } from 'path';
 // .env still works as an override at runtime (see config.ts precedence rules),
 // but values are migrated into this file on first run so future runs are
 // self-contained.
-const dataDir = resolve(import.meta.dirname || '.', '../data');
+// Data directory: config.json + the SQLite DB live here. Defaults to
+// server/data, but PROJECTX_DATA_DIR overrides it — used by the desktop app to
+// store data under the OS user-data folder instead of inside the (read-only,
+// signed) app bundle.
+const dataDir = process.env.PROJECTX_DATA_DIR
+  ? resolve(process.env.PROJECTX_DATA_DIR)
+  : resolve(import.meta.dirname || '.', '../data');
 export const CONFIG_PATH = resolve(dataDir, 'config.json');
 
 export interface StoredConfig {
