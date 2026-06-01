@@ -32,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.7 - 2026-06-01
+
+### Added
+- **In-app update banner**: a thin bar shown on top of every screen (including
+  first-run setup and login) when the auto-updater detects a new version —
+  "Update X available — downloading…", then "Update X ready · Restart & update"
+  for a one-click apply. Wired the `update-available`/`update-downloaded` events
+  through the preload bridge + a `quit-and-install` IPC.
+- **CI auto-publishes the release** once BOTH desktop builds succeed (a
+  `publish-release` job flips the electron-builder draft to published + latest),
+  so `electron-updater` can see it (it ignores drafts). Windows auto-update works
+  out of the box; macOS auto-update still needs Developer ID signing/notarization.
+
 ## Desktop app 1.1.6 - 2026-06-01
 
 ### Fixed

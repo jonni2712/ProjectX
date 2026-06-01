@@ -355,6 +355,11 @@ function registerIpcHandlers(): void {
     await shell.openExternal(url);
   });
 
+  ipcMain.handle('quit-and-install', () => {
+    (app as any).isQuitting = true;
+    autoUpdater.quitAndInstall();
+  });
+
   ipcMain.handle('get-server-info', () => {
     const port = 3000;
     const urls: string[] = [`http://localhost:${port}`];

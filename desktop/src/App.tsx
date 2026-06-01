@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Server, Users, FolderOpen, Globe, Activity, Settings, LogOut, WifiOff, Loader2 } from 'lucide-react';
+import { Server, Users, FolderOpen, Globe, Activity, Settings, LogOut, WifiOff, Loader2, Download } from 'lucide-react';
 import { AuthProvider, useAuth } from './AuthContext';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/Users';
@@ -206,9 +206,44 @@ function AppContent() {
   );
 }
 
+// Thin bar shown on top of every screen (including first-run setup) when the
+// auto-updater finds a new version. While downloading it just informs; once the
+// update is downloaded it offers a one-click restart-to-update.
+function UpdateBanner() {
+  const [available, setAvailable] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.electronAPI?.onUpdateAvailable((v) => setAvailable(v));
+    window.electronAPI?.onUpdateDownloaded((v) => setDownloaded(v));
+  }, []);
+
+  if (!available && !downloaded) return null;
+
+  return (
+    <div className="fixed top-0 inset-x-0 z-50 bg-[#6C9EFF] text-[#0b0b16] text-sm px-4 py-2 flex items-center justify-center gap-3 shadow-lg">
+      <Download size={15} />
+      {downloaded ? (
+        <>
+          <span>Update {downloaded} ready.</span>
+          <button
+            onClick={() => window.electronAPI?.quitAndInstall()}
+            className="font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            Restart &amp; update
+          </button>
+        </>
+      ) : (
+        <span>Update {available} available — downloading…</span>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <UpdateBanner />
       <AppContent />
     </AuthProvider>
   );
