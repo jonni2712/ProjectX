@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.9 - 2026-06-01
+
+### Fixed
+- **"Failed to fetch" / wrong-server bug**: the app used to connect to *any*
+  server already answering on :3000 (including a stale/dead one from a previous
+  crash or a manually-started instance), which caused "Failed to fetch" and the
+  earlier ABI confusion. The app now **always runs its own bundled server** and
+  **kills a stale server** left by a crashed previous run (tracked via a
+  `server.pid` file in userData), with a short pause before rebinding.
+
+### CI
+- The `build-mobile` job now also attaches the built APK to the GitHub release
+  for the tag (best-effort), so it's downloadable directly.
+
 ## Mobile app 1.0.2 - 2026-06-01
 
 ### Fixed

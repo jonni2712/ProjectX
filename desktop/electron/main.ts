@@ -48,6 +48,37 @@ function appendLog(line: string): void {
   }
 }
 
+// We persist the spawned server's PID so that, if this app crashes and leaves
+// the server orphaned, the next launch can kill it instead of connecting to a
+// stale/dead process (which produced "Failed to fetch" / wrong-server bugs).
+function serverPidFile(): string {
+  return path.join(app.getPath('userData'), 'server.pid');
+}
+
+function writeServerPid(pid: number): void {
+  try { fs.writeFileSync(serverPidFile(), String(pid), 'utf-8'); } catch { /* non-fatal */ }
+}
+
+function clearServerPid(): void {
+  try { fs.unlinkSync(serverPidFile()); } catch { /* not there */ }
+}
+
+function killStaleServer(): void {
+  let pid: number | null = null;
+  try { pid = parseInt(fs.readFileSync(serverPidFile(), 'utf-8').trim(), 10); } catch { return; }
+  if (!pid || !Number.isFinite(pid)) return;
+  try {
+    process.kill(pid, 0); // throws if not running
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(pid), '/f', '/t'], { shell: true });
+    } else {
+      process.kill(pid, 'SIGTERM');
+    }
+    appendLog(`[desktop] Killed stale server (pid=${pid}) from a previous run.`);
+  } catch { /* already gone */ }
+  clearServerPid();
+}
+
 function startServer(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (serverProcess) {
@@ -108,6 +139,7 @@ function startServer(): Promise<void> {
     });
 
     serverStartTime = Date.now();
+    if (serverProcess.pid) writeServerPid(serverProcess.pid);
 
     serverProcess.stdout?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
@@ -207,6 +239,7 @@ function stopServer(): Promise<void> {
       clearTimeout(killTimeout);
       serverProcess = null;
       serverStartTime = null;
+      clearServerPid();
       appendLog('[desktop] Server stopped.');
       updateTrayMenu();
       resolve();
@@ -445,19 +478,17 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   createTray();
 
-  // First check if server is already running externally
+  // Always run OUR OWN bundled server. Kill any stale one a previous (crashed)
+  // run left behind first, so we never connect to a dead/stale process on the
+  // port (that caused "Failed to fetch" / wrong-Node bugs). Brief pause lets the
+  // port free before we rebind.
+  killStaleServer();
+  await new Promise((r) => setTimeout(r, 400));
   try {
-    await pollServerHealth(3, 500);
-    appendLog('[desktop] External server detected, connecting to it.');
-  } catch {
-    // Server not running, try to start it
-    appendLog('[desktop] No server detected, attempting to start...');
-    try {
-      await startServer();
-    } catch (err) {
-      appendLog(`[desktop] Failed to start server: ${err}`);
-      appendLog('[desktop] Opening dashboard anyway — start the server manually.');
-    }
+    await startServer();
+  } catch (err) {
+    appendLog(`[desktop] Failed to start server: ${err}`);
+    appendLog('[desktop] Opening dashboard anyway — check the Logs tab.');
   }
 
   createWindow();
