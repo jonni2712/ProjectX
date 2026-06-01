@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   getServerInfo: () => ipcRenderer.invoke('get-server-info'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   // Auto-update events (emitted by the main process via electron-updater).
   onUpdateAvailable: (cb: (version: string) => void) =>
     ipcRenderer.on('update-available', (_e, version: string) => cb(version)),

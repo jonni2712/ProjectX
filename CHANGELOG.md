@@ -5,6 +5,13 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Desktop app 1.1.11 - 2026-06-01
+
+### Added
+- Show the **app version** in the sidebar footer (`v1.1.11`), via a new
+  `get-app-version` IPC. Also serves as a visual confirmation that an
+  auto-update was applied (the label changes after restarting into the update).
+
 ## Desktop app 1.1.10 - 2026-06-01
 
 ### Fixed

@@ -132,6 +132,11 @@ function LoadingScreen() {
 
 function AppContent() {
   const { isAuthenticated, isLoading, needsSetup, refresh, user, logout } = useAuth();
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.electronAPI?.getAppVersion().then(setAppVersion).catch(() => {});
+  }, []);
 
   if (isLoading) return <LoadingScreen />;
   // Fresh install: the server is up but unconfigured — run first-run setup.
@@ -187,9 +192,12 @@ function AppContent() {
               </button>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-gray-400">Server running</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs text-gray-400">Server running</span>
+            </div>
+            {appVersion && <span className="text-xs text-gray-600">v{appVersion}</span>}
           </div>
         </div>
       </aside>

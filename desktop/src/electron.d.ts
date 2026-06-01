@@ -6,6 +6,7 @@ interface ElectronAPI {
   openExternal: (url: string) => Promise<void>;
   selectDirectory: () => Promise<string | null>;
   getServerInfo: () => Promise<{ port: number; urls: string[] }>;
+  getAppVersion: () => Promise<string>;
   onUpdateAvailable: (cb: (version: string) => void) => void;
   onUpdateDownloaded: (cb: (version: string) => void) => void;
   quitAndInstall: () => Promise<void>;

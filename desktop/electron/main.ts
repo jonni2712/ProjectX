@@ -391,6 +391,8 @@ function registerIpcHandlers(): void {
     await shell.openExternal(url);
   });
 
+  ipcMain.handle('get-app-version', () => app.getVersion());
+
   ipcMain.handle('quit-and-install', () => {
     (app as any).isQuitting = true;
     autoUpdater.quitAndInstall();
