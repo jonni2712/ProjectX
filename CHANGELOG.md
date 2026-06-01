@@ -32,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first-run setup mode instead. Added a `get-server-info` IPC exposing LAN URLs
   for the pairing QR. Sidebar "Tunnel" entry renamed to "Remote".
 
+## Desktop app 1.1.6 - 2026-06-01
+
+### Fixed
+- **Native modules failed to compile against Electron 41's V8** (better-sqlite3
+  source uses V8 APIs removed in the very new V8 → 6 compile errors, the
+  @electron/rebuild step failed). Pinned **Electron to 31.7.7** (Node 20 / V8
+  12.6), which the current native module versions (better-sqlite3 11, node-pty 1,
+  bcrypt 5) compile cleanly against — verified locally with `@electron/rebuild
+  --version 31.7.7` (bcrypt, better-sqlite3, node-pty all rebuilt OK). The app
+  is a management dashboard, so the older Chromium is irrelevant.
+
 ## Desktop app 1.1.5 - 2026-06-01
 
 ### Fixed
