@@ -92,13 +92,13 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   // PUT /files/update { path, content }
   fastify.put('/files/update', async (request: FastifyRequest<{
     Body: { path: string; content: string }
-  }>) => {
+  }>, reply) => {
     const { path, content } = request.body;
     const userId = request.user.userId;
 
-    // Check lock
+    // Locked by someone else → 409 so clients can't mistake it for success.
     if (lockService.isLocked(path, userId)) {
-      return { success: false, error: 'File is locked by another user' };
+      return reply.status(409).send({ success: false, error: 'File is locked by another user' });
     }
 
     await writeFileContent(path, content);
@@ -107,12 +107,12 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   });
 
   // DELETE /files/delete?path=...
-  fastify.delete('/files/delete', async (request: FastifyRequest<{ Querystring: { path: string } }>) => {
+  fastify.delete('/files/delete', async (request: FastifyRequest<{ Querystring: { path: string } }>, reply) => {
     const { path } = request.query;
     const userId = request.user.userId;
 
     if (lockService.isLocked(path, userId)) {
-      return { success: false, error: 'File is locked by another user' };
+      return reply.status(409).send({ success: false, error: 'File is locked by another user' });
     }
 
     await deleteEntry(path);
@@ -123,11 +123,11 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   // POST /files/rename { path, newName }
   fastify.post('/files/rename', async (request: FastifyRequest<{
     Body: { path: string; newName: string }
-  }>) => {
+  }>, reply) => {
     const { path, newName } = request.body;
     const userId = request.user.userId;
     if (lockService.isLocked(path, userId)) {
-      return { success: false, error: 'File is locked by another user' };
+      return reply.status(409).send({ success: false, error: 'File is locked by another user' });
     }
     await renameEntry(path, newName);
     // The lock should follow the file to its new path.
@@ -140,11 +140,11 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   // POST /files/move { srcPath, destDir }
   fastify.post('/files/move', async (request: FastifyRequest<{
     Body: { srcPath: string; destDir: string }
-  }>) => {
+  }>, reply) => {
     const { srcPath, destDir } = request.body;
     const userId = request.user.userId;
     if (lockService.isLocked(srcPath, userId)) {
-      return { success: false, error: 'File is locked by another user' };
+      return reply.status(409).send({ success: false, error: 'File is locked by another user' });
     }
     await moveEntry(srcPath, destDir);
     const base = srcPath.replace(/\/+$/, '').split('/').filter(Boolean).pop() || '';
@@ -156,12 +156,12 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   // POST /files/copy { srcPath, destPath }
   fastify.post('/files/copy', async (request: FastifyRequest<{
     Body: { srcPath: string; destPath: string }
-  }>) => {
+  }>, reply) => {
     const { srcPath, destPath } = request.body;
     const userId = request.user.userId;
     // Don't overwrite a destination locked by someone else.
     if (lockService.isLocked(destPath, userId)) {
-      return { success: false, error: 'Destination is locked by another user' };
+      return reply.status(409).send({ success: false, error: 'Destination is locked by another user' });
     }
     await copyEntry(srcPath, destPath);
     audit(userId, 'file_copy', srcPath, `→ ${destPath}`);

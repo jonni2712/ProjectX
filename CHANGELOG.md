@@ -5,6 +5,23 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.12] - 2026-06-02 (server) / Desktop 1.1.13 — P2 batch 1 (flows & tunnel)
+
+### Fixed
+- **Silent data loss on locked files** — `/files/update`, `/delete`, `/rename`,
+  `/move`, `/copy` now return **HTTP 409** (not 200 + `success:false`) when the
+  target is locked by another user, so clients (which awaited the call without
+  inspecting `success`) can no longer report a rejected save as "Saved".
+- **cloudflared download integrity** — `ensureCloudflared()` now verifies the
+  downloaded binary's SHA-256 against `CLOUDFLARED_EXPECTED_SHA256` before making
+  it executable (refuses on mismatch), and loudly warns when installing unpinned.
+- **Named-tunnel rollback** — if any Cloudflare API step fails (e.g. a token
+  scoped for Tunnel but not DNS), the partially-created tunnel + DNS record are
+  best-effort deleted instead of being orphaned on the account.
+- **Password policy consistency (desktop)** — SetupWizard now enforces the same
+  12-char + 4-distinct rule as the server (was 8); the Create-User placeholder
+  no longer says "Min 6".
+
 ## [1.1.11] - 2026-06-02 (server) — P1 operational correctness (from full audit)
 
 ### Fixed

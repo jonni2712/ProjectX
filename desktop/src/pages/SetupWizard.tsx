@@ -38,7 +38,8 @@ export default function SetupWizard({ onComplete }: { onComplete?: () => void })
     e.preventDefault();
     setError(null);
     if (!workspaceRoot.trim()) return setError('Workspace root is required');
-    if (adminPassword.length < 8) return setError('Password must be at least 8 characters');
+    if (adminPassword.length < 12) return setError('Password must be at least 12 characters');
+    if (new Set(adminPassword).size < 4) return setError('Password is too repetitive (use at least 4 distinct characters)');
     if (adminPassword !== confirm) return setError('Passwords do not match');
 
     setPhase('starting');

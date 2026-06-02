@@ -122,10 +122,22 @@ export async function ensureCloudflared(): Promise<{ success: boolean; path?: st
     } else {
       writeFileSync(dest, buf);
     }
-    if (process.platform !== 'win32') chmodSync(dest, 0o755);
-
+    // Verify integrity against the operator's pinned hash list BEFORE making it
+    // executable, if one is configured. Without a pin we can only trust the
+    // HTTPS download from the official release (logged for manual verification).
     const sha = createHash('sha256').update(readFileSync(dest)).digest('hex');
-    console.log(`[cloudflare] Installed cloudflared at ${dest} (sha256: ${sha})`);
+    const expected = config.cloudflaredExpectedHashes;
+    if (expected.length > 0 && !expected.includes(sha)) {
+      try { unlinkSync(dest); } catch { /* ignore */ }
+      return { success: false, message: `Refusing to install cloudflared: sha256 ${sha} not in the pinned allowlist (CLOUDFLARED_EXPECTED_SHA256).` };
+    }
+
+    if (process.platform !== 'win32') chmodSync(dest, 0o755);
+    if (expected.length === 0) {
+      console.warn(`[cloudflare] Installed cloudflared UNVERIFIED (sha256: ${sha}). Pin it via CLOUDFLARED_EXPECTED_SHA256 to enforce integrity.`);
+    } else {
+      console.log(`[cloudflare] Installed cloudflared (sha256 ${sha}, matches pin)`);
+    }
     return { success: true, path: dest, message: `Installed cloudflared (sha256 ${sha})` };
   } catch (err) {
     return { success: false, message: `Install failed: ${(err as Error).message}` };
@@ -321,6 +333,11 @@ export async function startNamedTunnel(params: NamedTunnelParams): Promise<Actio
   const name = params.name || `projectx-${hostname.replace(/[^a-z0-9]+/gi, '-')}`;
   const target = localTargetUrl();
 
+  // Track resources we create so we can roll them back if a later step fails
+  // (a common case: an API token scoped for Tunnel but not DNS edit).
+  let createdTunnelId: string | null = null;
+  let createdDnsId: string | null = null;
+
   try {
     // 1. Create the tunnel (cloudflare-managed config so we can set ingress via API).
     const created = await cfApi(apiToken, 'POST', `/accounts/${accountId}/cfd_tunnel`, {
@@ -328,6 +345,7 @@ export async function startNamedTunnel(params: NamedTunnelParams): Promise<Actio
       config_src: 'cloudflare',
     });
     const tunnelId: string = created.result.id;
+    createdTunnelId = tunnelId;
 
     // 2. Fetch the connector token used by `cloudflared tunnel run --token`.
     const tokenResp = await cfApi(apiToken, 'GET', `/accounts/${accountId}/cfd_tunnel/${tunnelId}/token`);
@@ -351,9 +369,10 @@ export async function startNamedTunnel(params: NamedTunnelParams): Promise<Actio
         type: 'CNAME', name: hostname, content: cname, proxied: true,
       });
     } else {
-      await cfApi(apiToken, 'POST', `/zones/${zoneId}/dns_records`, {
+      const dns = await cfApi(apiToken, 'POST', `/zones/${zoneId}/dns_records`, {
         type: 'CNAME', name: hostname, content: cname, proxied: true,
       });
+      createdDnsId = dns?.result?.id ?? null;
     }
 
     // 5. Run the connector.
@@ -369,6 +388,14 @@ export async function startNamedTunnel(params: NamedTunnelParams): Promise<Actio
       setTimeout(() => done({ success: true, message: 'Named tunnel started', url, mode: 'named' }), 4000);
     });
   } catch (err) {
+    // Roll back partially-created resources so we don't orphan a tunnel / DNS
+    // record on the user's Cloudflare account.
+    if (createdDnsId) {
+      try { await cfApi(apiToken, 'DELETE', `/zones/${zoneId}/dns_records/${createdDnsId}`); } catch { /* best effort */ }
+    }
+    if (createdTunnelId) {
+      try { await cfApi(apiToken, 'DELETE', `/accounts/${accountId}/cfd_tunnel/${createdTunnelId}`); } catch { /* best effort */ }
+    }
     return { success: false, message: `Cloudflare API error: ${(err as Error).message}` };
   }
 }

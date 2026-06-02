@@ -62,7 +62,7 @@ function CreateUserDialog({ onClose, onCreated }: { onClose: () => void; onCreat
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="w-full bg-[#0F0F1A] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#6C9EFF] focus:outline-none"
-              placeholder="Min 6 characters"
+              placeholder="At least 12 characters"
               required
             />
           </div>
