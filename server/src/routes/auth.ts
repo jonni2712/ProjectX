@@ -3,8 +3,9 @@ import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
-import { db, audit, getUserByUsername, getUserById, createUser, updateUser, listUsers, deleteUser, bumpTokenVersion } from '../db/database.js';
+import { db, audit, getUserByUsername, getUserById, createUser, updateUser, listUsers, deleteUser, bumpTokenVersion, countActiveAdmins } from '../db/database.js';
 import { issueWsTicket } from '../plugins/auth.js';
+import { closeSocketsForUser } from '../ws/handler.js';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -156,6 +157,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     bumpTokenVersion(userId);
     // Wipe every refresh token for this user
     db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(userId);
+    closeSocketsForUser(userId); // drop any live WebSocket immediately
     audit(userId, 'logout', request.user.username);
     return { success: true, data: { message: 'Logged out' } };
   });
@@ -164,8 +166,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/auth/ws-ticket', {
     onRequest: [fastify.authenticate],
   }, async (request) => {
-    const { userId, username } = request.user;
-    const ticket = issueWsTicket(userId, username);
+    const { userId, username, tv } = request.user;
+    const ticket = issueWsTicket(userId, username, tv);
     return { success: true, data: { ticket } };
   });
 
@@ -227,6 +229,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // Invalidate all existing JWTs/refresh tokens after a password change
     bumpTokenVersion(user.id);
     db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(user.id);
+    closeSocketsForUser(user.id);
     audit(user.id, 'password_changed', user.username);
 
     return { success: true, data: { message: 'Password updated' } };
@@ -304,6 +307,17 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ success: false, error: 'User not found' });
     }
 
+    const demoting = body.role === 'user';
+    const deactivating = body.active === false;
+    // An admin must not lock themselves out...
+    if (id === request.user.userId && (demoting || deactivating)) {
+      return reply.status(409).send({ success: false, error: 'You cannot demote or deactivate your own admin account' });
+    }
+    // ...and the system must always keep at least one active admin.
+    if ((demoting || deactivating) && user.role === 'admin' && user.active === 1 && countActiveAdmins() <= 1) {
+      return reply.status(409).send({ success: false, error: 'Cannot remove the last active admin' });
+    }
+
     const fields: Record<string, any> = {};
     if (body.role !== undefined) fields.role = body.role;
     if (body.active !== undefined) fields.active = body.active ? 1 : 0;
@@ -313,10 +327,11 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     updateUser(id, fields);
-    // Role changes or deactivation must invalidate existing JWTs
+    // Role changes or deactivation must invalidate existing JWTs + live sockets
     if (body.role !== undefined || body.active === false) {
       bumpTokenVersion(id);
       db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').run(id);
+      closeSocketsForUser(id);
     }
     audit(request.user.userId, 'user_updated', user.username, JSON.stringify(fields));
 
@@ -333,8 +348,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (!user) {
       return reply.status(404).send({ success: false, error: 'User not found' });
     }
+    if (id === request.user.userId) {
+      return reply.status(409).send({ success: false, error: 'You cannot delete your own account' });
+    }
+    if (user.role === 'admin' && user.active === 1 && countActiveAdmins() <= 1) {
+      return reply.status(409).send({ success: false, error: 'Cannot remove the last active admin' });
+    }
 
     deleteUser(id);
+    closeSocketsForUser(id);
     audit(request.user.userId, 'user_deleted', user.username);
 
     return { success: true, data: { message: `User "${user.username}" deactivated` } };

@@ -5,6 +5,31 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.10] - 2026-06-02 (server) — P0 multi-user safety (from full audit)
+
+Top-priority fixes from the deep multi-agent audit (140 verified findings; full
+backlog in docs/plans/2026-06-02-audit-backlog.md).
+
+### Security / correctness
+- **WebSocket sessions are now revocable after the handshake.** The ws-ticket
+  carries the user's `token_version`; the socket stores it; a 30s timer
+  re-checks every socket against the DB and closes (4003) any whose user logged
+  out / changed password / was deactivated / role-changed / deleted. Revocation
+  sites also proactively `closeSocketsForUser()` for immediate effect. Closes the
+  biggest gap: a held terminal/Claude/file socket previously survived revocation
+  indefinitely.
+- **Last-admin / self-lockout guards.** `PATCH`/`DELETE /auth/users/:id` now
+  reject demoting/deactivating/deleting your own admin account, and any action
+  that would drop active admins to zero (409) — the system can no longer be
+  bricked into having no reachable admin.
+- **Canonical lock keys.** Locks are keyed by `relativePath(safePath(path))`, so
+  `/a/b`, `a/b` and `/a/b/` map to ONE lock instead of distinct rows that
+  silently defeated locking (verified). `getLocksForProject` escapes LIKE
+  wildcards; added `relocateLock`.
+- **Lock enforcement on rename/move/copy/upload.** These mutations now check the
+  lock (rejecting another user's lock) and the lock follows the file on
+  rename/move.
+
 ## [1.1.9] - 2026-06-01 (server) / Desktop 1.1.12 — security hardening (code)
 
 Code-level hardening from the security audit (the network-exposed surface):

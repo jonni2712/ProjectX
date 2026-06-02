@@ -153,6 +153,11 @@ export function listUsers(): UserRow[] {
   return db.prepare('SELECT * FROM users').all() as UserRow[];
 }
 
+/** Number of active admins — used to prevent locking out the last admin. */
+export function countActiveAdmins(): number {
+  return (db.prepare("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin' AND active = 1").get() as { cnt: number }).cnt;
+}
+
 export function deleteUser(id: string): void {
   // Deactivate + bump token_version so any live JWTs for this user are rejected.
   db.prepare('UPDATE users SET active = 0, token_version = token_version + 1 WHERE id = ?').run(id);

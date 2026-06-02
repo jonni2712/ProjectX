@@ -6,8 +6,10 @@ import { randomBytes } from 'crypto';
 import { getTokenVersion } from '../db/database.js';
 import type { JwtPayload } from '../utils/types.js';
 
-// In-memory ticket store for secure WebSocket auth
-const wsTickets = new Map<string, { userId: string; username: string; expiresAt: number }>();
+// In-memory ticket store for secure WebSocket auth. The ticket carries the
+// user's token_version so the long-lived socket can be revoked after the
+// handshake (logout / password change / deactivation / role change).
+const wsTickets = new Map<string, { userId: string; username: string; tv: number; expiresAt: number }>();
 
 // Clean expired tickets every 30s
 setInterval(() => {
@@ -17,20 +19,20 @@ setInterval(() => {
   }
 }, 30000);
 
-export function issueWsTicket(userId: string, username: string): string {
+export function issueWsTicket(userId: string, username: string, tv: number): string {
   const ticket = randomBytes(32).toString('hex');
-  wsTickets.set(ticket, { userId, username, expiresAt: Date.now() + 60000 }); // 60s TTL
+  wsTickets.set(ticket, { userId, username, tv, expiresAt: Date.now() + 60000 }); // 60s TTL
   return ticket;
 }
 
-export function validateWsTicket(ticket: string): { userId: string; username: string } | null {
+export function validateWsTicket(ticket: string): { userId: string; username: string; tv: number } | null {
   const data = wsTickets.get(ticket);
   if (!data || data.expiresAt < Date.now()) {
     wsTickets.delete(ticket);
     return null;
   }
   wsTickets.delete(ticket); // Single-use
-  return { userId: data.userId, username: data.username };
+  return { userId: data.userId, username: data.username, tv: data.tv };
 }
 
 async function authPlugin(fastify: FastifyInstance) {

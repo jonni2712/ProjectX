@@ -125,8 +125,15 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     Body: { path: string; newName: string }
   }>) => {
     const { path, newName } = request.body;
+    const userId = request.user.userId;
+    if (lockService.isLocked(path, userId)) {
+      return { success: false, error: 'File is locked by another user' };
+    }
     await renameEntry(path, newName);
-    audit(request.user.userId, 'file_rename', path, `→ ${newName}`);
+    // The lock should follow the file to its new path.
+    const renamedTo = path.replace(/\/+$/, '').replace(/[^/]+$/, '') + newName;
+    lockService.relocateLock(path, renamedTo);
+    audit(userId, 'file_rename', path, `→ ${newName}`);
     return { success: true };
   });
 
@@ -135,8 +142,14 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     Body: { srcPath: string; destDir: string }
   }>) => {
     const { srcPath, destDir } = request.body;
+    const userId = request.user.userId;
+    if (lockService.isLocked(srcPath, userId)) {
+      return { success: false, error: 'File is locked by another user' };
+    }
     await moveEntry(srcPath, destDir);
-    audit(request.user.userId, 'file_move', srcPath, `→ ${destDir}`);
+    const base = srcPath.replace(/\/+$/, '').split('/').filter(Boolean).pop() || '';
+    lockService.relocateLock(srcPath, destDir.replace(/\/+$/, '') + '/' + base);
+    audit(userId, 'file_move', srcPath, `→ ${destDir}`);
     return { success: true };
   });
 
@@ -145,8 +158,13 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     Body: { srcPath: string; destPath: string }
   }>) => {
     const { srcPath, destPath } = request.body;
+    const userId = request.user.userId;
+    // Don't overwrite a destination locked by someone else.
+    if (lockService.isLocked(destPath, userId)) {
+      return { success: false, error: 'Destination is locked by another user' };
+    }
     await copyEntry(srcPath, destPath);
-    audit(request.user.userId, 'file_copy', srcPath, `→ ${destPath}`);
+    audit(userId, 'file_copy', srcPath, `→ ${destPath}`);
     return { success: true };
   });
 
@@ -186,11 +204,18 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     }
     const buffer = Buffer.concat(chunks);
 
+    const userId = request.user.userId;
     // Check if zip and should extract
     if ((request.query as any).extract === 'true' && data.filename.endsWith('.zip')) {
+      if (lockService.isLocked(destPath, userId)) {
+        return reply.status(409).send({ success: false, error: 'Target directory is locked by another user' });
+      }
       await unzipToDirectory(buffer, destPath);
-      audit(request.user.userId, 'file_upload_extract', destPath, data.filename);
+      audit(userId, 'file_upload_extract', destPath, data.filename);
     } else {
+      if (lockService.isLocked(fullPath, userId)) {
+        return reply.status(409).send({ success: false, error: 'Target file is locked by another user' });
+      }
       const { writeFile } = await import('fs/promises');
       const { safePath } = await import('../utils/path-guard.js');
       const { dirname } = await import('path');

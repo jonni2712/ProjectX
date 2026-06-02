@@ -12,12 +12,15 @@ import {
   stopClaudeCliSession, isClaudeCliAvailable,
 } from '../services/claude-cli.js';
 import { streamClaudeApi, isApiAvailable } from '../services/claude-api.js';
+import { getTokenVersion } from '../db/database.js';
 import type { WsMessage } from '../utils/types.js';
 
 interface AuthenticatedSocket {
   ws: WebSocket;
   userId: string;
   username: string;
+  tv: number; // token_version at connect time — for post-handshake revocation
+
   terminalListeners: Map<string, (data: string) => void>;
   claudeListeners: Map<string, (event: any) => void>;
   // Null = no path filter (client gets every file event for backwards compat).
@@ -26,6 +29,32 @@ interface AuthenticatedSocket {
 }
 
 const connectedClients = new Set<AuthenticatedSocket>();
+
+/**
+ * Immediately close every open socket belonging to a user. Called from the
+ * revocation sites (logout / password change / deactivation / role change) so
+ * a revoked session can't keep a live, privileged WebSocket.
+ */
+export function closeSocketsForUser(userId: string) {
+  for (const client of connectedClients) {
+    if (client.userId === userId) {
+      try { client.ws.close(4003, 'Session revoked'); } catch { /* already gone */ }
+    }
+  }
+}
+
+// Safety net: even without a proactive close, re-validate every socket against
+// the DB token_version periodically. Catches deletions and any missed site, and
+// closes sockets whose user logged out / changed password / was deactivated.
+setInterval(() => {
+  for (const client of connectedClients) {
+    if (client.ws.readyState !== WebSocket.OPEN) continue;
+    const current = getTokenVersion(client.userId); // null = missing/inactive
+    if (current === null || current !== client.tv) {
+      try { client.ws.close(4003, 'Session revoked'); } catch { /* ignore */ }
+    }
+  }
+}, 30000);
 
 /**
  * Broadcast to every connected client. Used for system-wide notifications.
@@ -84,6 +113,7 @@ export default async function wsHandler(fastify: FastifyInstance) {
       ws: socket,
       userId: auth.userId,
       username: auth.username,
+      tv: auth.tv,
       terminalListeners: new Map(),
       claudeListeners: new Map(),
       subscribedPaths: null, // Default: receive all file events (backwards compat)
