@@ -332,8 +332,23 @@ async function handleClaude(
 ) {
   switch (type) {
     case 'prompt': {
-      const { prompt, cwd, mode } = data;
-      const workingDir = cwd || '/';
+      const { prompt, cwd, mode } = data ?? {};
+      // Validate the unvalidated WS payload before spawning a subprocess /
+      // hitting the API: prompt must be a non-empty, bounded string; mode must
+      // be one of the known values.
+      if (typeof prompt !== 'string' || prompt.trim().length === 0) {
+        send({ channel: 'claude', type: 'error', data: 'Prompt is required' });
+        break;
+      }
+      if (prompt.length > 100000) {
+        send({ channel: 'claude', type: 'error', data: 'Prompt is too long' });
+        break;
+      }
+      if (mode !== undefined && mode !== 'cli' && mode !== 'api') {
+        send({ channel: 'claude', type: 'error', data: 'Invalid mode' });
+        break;
+      }
+      const workingDir = typeof cwd === 'string' && cwd.length > 0 ? cwd : '/';
 
       // Try CLI first, then API fallback
       const useCliMode = mode === 'cli' || (mode !== 'api' && isClaudeCliAvailable());

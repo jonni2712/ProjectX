@@ -99,6 +99,11 @@ if (!columnExists('users', 'token_version')) {
   console.log('[db] Migrated: added users.token_version column');
 }
 
+// On startup the in-memory terminal/claude sessions from a previous run are
+// gone, but their DB rows may still say active=1. Reconcile so the API never
+// reports dead sessions as live.
+db.exec("UPDATE terminal_sessions SET active = 0 WHERE active = 1; UPDATE claude_sessions SET active = 0 WHERE active = 1;");
+
 // --- Helper functions ---
 
 export function audit(userId: string, action: string, target?: string, details?: string): void {

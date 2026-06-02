@@ -57,7 +57,17 @@ function countTerminalsForUser(userId: string): number {
   return count;
 }
 
+// Clamp pty dimensions to sane bounds — non-integer / negative / huge values
+// (from unvalidated WS messages) can crash node-pty or exhaust resources.
+function clampDim(v: unknown, def: number, max: number): number {
+  const n = typeof v === 'number' ? v : NaN;
+  if (!Number.isFinite(n) || n < 1) return def;
+  return Math.min(Math.floor(n), max);
+}
+
 export function createTerminal(cwd: string, cols: number = 80, rows: number = 24, userId: string = ''): ActiveTerminal {
+  cols = clampDim(cols, 80, 1000);
+  rows = clampDim(rows, 24, 500);
   // Enforce per-user cap (an empty userId means anonymous and shares one bucket).
   if (countTerminalsForUser(userId) >= MAX_TERMINALS_PER_USER) {
     throw new TerminalLimitError();
@@ -162,6 +172,8 @@ export function writeToTerminal(id: string, data: string): boolean {
 export function resizeTerminal(id: string, cols: number, rows: number): boolean {
   const terminal = activeTerminals.get(id);
   if (!terminal) return false;
+  cols = clampDim(cols, 80, 1000);
+  rows = clampDim(rows, 24, 500);
   terminal.pty.resize(cols, rows);
   terminal.session.cols = cols;
   terminal.session.rows = rows;

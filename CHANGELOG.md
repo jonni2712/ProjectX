@@ -5,6 +5,29 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.11] - 2026-06-02 (server) — P1 operational correctness (from full audit)
+
+### Fixed
+- **Typed git errors**: merge conflicts, non-fast-forward, no-upstream and auth
+  failures now return a clean 4xx (409/422/401/404) with a one-line message
+  instead of an opaque 500 leaking git stderr (`git.service.ts`).
+- **Unbounded inputs clamped**: `git log` maxCount and `scan-repos` depth are
+  clamped (NaN no longer returns full history / recurses unbounded); PTY
+  `cols`/`rows` are clamped to sane bounds on create AND resize (bad values from
+  WS messages can't crash node-pty).
+- **Claude WS payload validated**: `prompt` must be a non-empty bounded string
+  and `mode` one of cli/api before any subprocess/API call.
+- **`/config/update` now writes `data/config.json`** (the real source of truth)
+  via config-store, with proper validation — previously it edited a `.env` that
+  doesn't exist on most installs, so the desktop Settings "Save" silently no-op'd.
+- **Stale session rows reconciled at boot**: terminal/claude `active=1` rows from
+  a previous run are reset to 0 so the API never reports dead sessions as live.
+
+### Deferred
+- Full Fastify request-schema sweep on git/files routes (`required: repo/path`,
+  etc.) — the dangerous cases (NaN, injection) are already covered by the
+  service-level clamps/guards; tracked in the audit backlog.
+
 ## [1.1.10] - 2026-06-02 (server) — P0 multi-user safety (from full audit)
 
 Top-priority fixes from the deep multi-agent audit (140 verified findings; full

@@ -56,29 +56,35 @@ export default async function healthRoutes(fastify: FastifyInstance) {
         },
       },
     },
-  }, async (request) => {
+  }, async (request, reply) => {
     const { workspaceRoot, port, host } = request.body as { workspaceRoot?: string; port?: number; host?: string };
-    const { writeFileSync, readFileSync, existsSync } = await import('fs');
-    const { resolve } = await import('path');
-    const envPath = resolve(import.meta.dirname || '.', '../../.env');
+    const { existsSync } = await import('fs');
+    const { loadStoredConfig, saveStoredConfig } = await import('../config-store.js');
 
-    if (!existsSync(envPath)) {
-      return { success: false, error: '.env file not found' };
+    if (workspaceRoot !== undefined) {
+      if (/[\n\r\0]/.test(workspaceRoot)) {
+        return reply.status(400).send({ success: false, error: 'Invalid characters in workspaceRoot' });
+      }
+      if (!existsSync(workspaceRoot)) {
+        return reply.status(400).send({ success: false, error: 'Workspace root does not exist' });
+      }
+    }
+    if (host !== undefined && /[\n\r\0]/.test(host)) {
+      return reply.status(400).send({ success: false, error: 'Invalid characters in host' });
+    }
+    if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+      return reply.status(400).send({ success: false, error: 'Invalid port' });
     }
 
-    // Validate no newlines in values (prevent .env injection)
-    const vals = [workspaceRoot, host].filter(Boolean);
-    if (vals.some(v => v && /[\n\r]/.test(v))) {
-      return { success: false, error: 'Invalid characters in config value' };
-    }
+    // Persist into the real source of truth (data/config.json), not the legacy
+    // .env (which is only an override and is absent on most installs).
+    const stored = loadStoredConfig();
+    if (workspaceRoot !== undefined) stored.workspaceRoot = workspaceRoot;
+    if (port !== undefined) stored.port = port;
+    if (host !== undefined) stored.host = host;
+    saveStoredConfig(stored);
 
-    let env = readFileSync(envPath, 'utf-8');
-    if (workspaceRoot) env = env.replace(/WORKSPACE_ROOT=.*/, `WORKSPACE_ROOT=${workspaceRoot}`);
-    if (port) env = env.replace(/PORT=.*/, `PORT=${port}`);
-    if (host) env = env.replace(/HOST=.*/, `HOST=${host}`);
-    writeFileSync(envPath, env, 'utf-8');
-
-    return { success: true, data: { message: 'Config updated. Restart server to apply.' } };
+    return { success: true, data: { message: 'Config updated. Restart the server to apply.' } };
   });
 
   // Tunnel endpoints — admin only
