@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import '../providers/auth_provider.dart';
 import '../providers/connection_provider.dart';
 import '../config/api_config.dart';
+import '../config/theme.dart';
 import 'admin_screen.dart';
 
 final biometricEnabledProvider = StateProvider<bool>((ref) => false);
@@ -116,7 +117,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Logout'),
           ),
@@ -146,30 +147,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: AppColors.accent,
                   child: const Icon(Icons.person, size: 40, color: Colors.white),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       authState.username ?? 'User',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text,
+                      ),
                     ),
                     if (authState.role != null) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: authState.role == 'admin'
-                              ? const Color(0xFF4C8DFF).withValues(alpha: 0.2)
-                              : const Color(0xFF3FB950).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
+                          color: (authState.role == 'admin' ? AppColors.accent : AppColors.success)
+                              .withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: authState.role == 'admin'
-                                ? const Color(0xFF4C8DFF)
-                                : const Color(0xFF3FB950),
+                            color: authState.role == 'admin' ? AppColors.accent : AppColors.success,
                           ),
                         ),
                         child: Text(
@@ -177,19 +179,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: authState.role == 'admin'
-                                ? const Color(0xFF4C8DFF)
-                                : const Color(0xFF3FB950),
+                            color: authState.role == 'admin' ? AppColors.accent : AppColors.success,
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   ApiConfig.baseUrl,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    color: AppColors.textDim,
+                  ),
                 ),
               ],
             ),
@@ -201,7 +204,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: ListTile(
               leading: Icon(
                 connectionState.isConnected ? Icons.cloud_done : Icons.cloud_off,
-                color: connectionState.isConnected ? Colors.green : Colors.red,
+                color: connectionState.isConnected ? AppColors.success : AppColors.danger,
               ),
               title: const Text('Server Connection'),
               subtitle: Text(connectionState.isConnected ? 'Connected' : 'Disconnected'),
@@ -218,7 +221,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Security section
           Padding(
             padding: const EdgeInsets.only(left: 4, top: 16, bottom: 8),
-            child: Text('SECURITY', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+            child: Text('SECURITY', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
           ),
           Card(
             child: Column(
@@ -233,7 +236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 if (!_biometricAvailable)
                   const ListTile(
-                    leading: Icon(Icons.fingerprint, color: Colors.grey),
+                    leading: Icon(Icons.fingerprint, color: AppColors.textDim),
                     title: Text('Biometric Unlock'),
                     subtitle: Text('Not available on this device'),
                   ),
@@ -245,7 +248,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Change Password section
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('CHANGE PASSWORD', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+            child: Text('CHANGE PASSWORD', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
           ),
           Card(
             child: Padding(
@@ -273,14 +276,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                   if (_passwordError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(_passwordError!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    Text(_passwordError!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
                   ],
                   if (_passwordSuccess != null) ...[
-                    const SizedBox(height: 8),
-                    Text(_passwordSuccess!, style: const TextStyle(color: Colors.green, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    Text(_passwordSuccess!, style: const TextStyle(color: AppColors.success, fontSize: 13)),
                   ],
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: _changingPassword ? null : _changePassword,
                     icon: _changingPassword
@@ -298,11 +301,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (authState.role == 'admin') ...[
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text('ADMINISTRATION', style: GoogleFonts.inter(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+              child: Text('ADMINISTRATION', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
             ),
             Card(
               child: ListTile(
-                leading: const Icon(Icons.admin_panel_settings, color: Color(0xFF4C8DFF)),
+                leading: const Icon(Icons.admin_panel_settings, color: AppColors.accent),
                 title: const Text('Admin Panel'),
                 subtitle: const Text('Manage users and permissions'),
                 trailing: const Icon(Icons.chevron_right),
@@ -314,10 +317,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 16),
           ],
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           // Logout button
           SizedBox(
@@ -325,13 +327,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             height: 48,
             child: OutlinedButton.icon(
               onPressed: _logout,
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text('Logout', style: TextStyle(color: Colors.red)),
+              icon: const Icon(Icons.logout, color: AppColors.danger),
+              label: const Text('Logout', style: TextStyle(color: AppColors.danger)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
+                foregroundColor: AppColors.danger,
+                side: const BorderSide(color: AppColors.danger),
               ),
             ),
           ),
+          const SizedBox(height: 8),
+
+          // Version label
+          Center(
+            child: Text(
+              'ProjectX v1.0.4',
+              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.textDim),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/file_provider.dart';
 import '../config/api_config.dart';
+import '../config/theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
@@ -131,12 +132,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   Container(
                     margin: const EdgeInsets.only(left: 8),
                     width: 8, height: 8,
-                    decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle),
                   ),
               ],
             ),
             if (fileState.selectedFilePath != null)
-              Text(fileState.selectedFilePath!, style: TextStyle(fontSize: 10, color: Colors.grey[600]), overflow: TextOverflow.ellipsis),
+              Text(
+                fileState.selectedFilePath!,
+                style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.textDim),
+                overflow: TextOverflow.ellipsis,
+              ),
           ],
         ),
         actions: [
@@ -161,7 +166,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                       final saved = await ref.read(fileProvider.notifier).saveFile();
                       if (saved && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Saved'), duration: Duration(seconds: 1)),
+                          SnackBar(
+                            content: Row(
+                              children: const [
+                                Icon(Icons.check_circle_outline, size: 18, color: AppColors.success),
+                                SizedBox(width: 8),
+                                Text('Saved'),
+                              ],
+                            ),
+                            duration: const Duration(seconds: 1),
+                          ),
                         );
                       }
                     }
@@ -174,16 +188,26 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.code_off, size: 64, color: Colors.grey[700]),
+                  const Icon(Icons.code_off, size: 60, color: AppColors.textDim),
                   const SizedBox(height: 16),
-                  Text('No file open', style: TextStyle(color: Colors.grey[600])),
+                  Text(
+                    'No file open',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Tap a file in the Files tab', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                  const Text(
+                    'Tap a file in the Files tab to start editing',
+                    style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                  ),
                 ],
               ),
             )
           : fileState.isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
               : isImage && isBinary
                   ? _ImagePreview(content: fileState.selectedFileContent!, path: fileState.selectedFilePath!)
                   : isBinary
@@ -193,25 +217,47 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             if (_showSearch)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                color: const Color(0xFF161B22),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.surface,
+                                  border: Border(
+                                    bottom: BorderSide(color: AppColors.border),
+                                  ),
+                                ),
                                 child: Row(
                                   children: [
+                                    const Icon(Icons.search, size: 18, color: AppColors.textDim),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: TextField(
                                         controller: _searchController,
                                         decoration: InputDecoration(
-                                          hintText: 'Search...',
+                                          hintText: 'Search in file...',
+                                          hintStyle: GoogleFonts.jetBrainsMono(
+                                            fontSize: 13,
+                                            color: AppColors.textDim,
+                                          ),
                                           isDense: true,
+                                          filled: false,
                                           border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
                                           suffixText: _searchMatches.isNotEmpty
                                               ? '${_currentMatchIndex + 1}/${_searchMatches.length}'
                                               : null,
+                                          suffixStyle: GoogleFonts.jetBrainsMono(
+                                            fontSize: 12,
+                                            color: AppColors.textMuted,
+                                          ),
                                         ),
-                                        style: GoogleFonts.jetBrainsMono(fontSize: 13),
+                                        style: GoogleFonts.jetBrainsMono(fontSize: 13, color: AppColors.text),
+                                        cursorColor: AppColors.accent,
                                         onChanged: _performSearch,
                                       ),
                                     ),
-                                    IconButton(icon: const Icon(Icons.arrow_downward, size: 18), onPressed: _nextMatch),
+                                    IconButton(
+                                      icon: const Icon(Icons.arrow_downward, size: 18, color: AppColors.textMuted),
+                                      onPressed: _nextMatch,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -251,9 +297,21 @@ class _ImagePreview extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.broken_image, size: 64, color: Colors.grey[700]),
+            const Icon(Icons.broken_image_outlined, size: 60, color: AppColors.textDim),
+            const SizedBox(height: 16),
+            Text(
+              'Cannot display image',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('Cannot display image', style: TextStyle(color: Colors.grey[600])),
+            const Text(
+              'The file could not be decoded',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
           ],
         ),
       );
@@ -271,21 +329,41 @@ class _BinaryFileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.insert_drive_file, size: 64, color: Colors.grey[700]),
-          const SizedBox(height: 16),
-          Text('Binary file (.$ext)', style: const TextStyle(fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(path, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            icon: const Icon(Icons.open_in_browser),
-            label: const Text('Open in Browser'),
-            onPressed: onPreview,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.insert_drive_file_outlined, size: 60, color: AppColors.textDim),
+            const SizedBox(height: 16),
+            Text(
+              'Binary file',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '.$ext files cannot be edited as text',
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              path,
+              style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.textDim),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              icon: const Icon(Icons.open_in_browser, size: 18),
+              label: const Text('Open in Browser'),
+              onPressed: onPreview,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -341,12 +419,13 @@ class _CodeEditorBodyState extends State<_CodeEditorBody> {
     final lineNumWidth = _lineCount > 999 ? 56.0 : _lineCount > 99 ? 48.0 : 40.0;
 
     return Container(
-      color: const Color(0xFF0D1117),
+      color: AppColors.canvas,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
+          Container(
             width: lineNumWidth,
+            color: AppColors.inset,
             child: ScrollConfiguration(
               behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
               child: ListView.builder(
@@ -361,26 +440,29 @@ class _CodeEditorBodyState extends State<_CodeEditorBody> {
                     padding: const EdgeInsets.only(right: 12),
                     child: Text(
                       '${index + 1}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 12, color: const Color(0xFF30363D), height: 1.5),
+                      style: GoogleFonts.jetBrainsMono(fontSize: 12, color: AppColors.textDim, height: 1.5),
                     ),
                   );
                 },
               ),
             ),
           ),
-          Container(width: 1, color: const Color(0xFF161B22)),
+          Container(width: 1, color: AppColors.border),
           Expanded(
             child: SingleChildScrollView(
               controller: widget.editorScrollController,
               child: TextField(
                 controller: widget.controller,
                 maxLines: null,
-                style: GoogleFonts.jetBrainsMono(fontSize: 13, height: 1.5, color: const Color(0xFFE6EDF3)),
+                style: GoogleFonts.jetBrainsMono(fontSize: 13, height: 1.5, color: AppColors.text),
                 decoration: const InputDecoration(
+                  filled: false,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                   contentPadding: EdgeInsets.all(12),
                 ),
-                cursorColor: const Color(0xFF4C8DFF),
+                cursorColor: AppColors.accent,
                 onChanged: widget.onChanged,
               ),
             ),

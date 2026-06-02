@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../config/theme.dart';
+
 /// First-run welcome screen. Shown once, before the login screen, when the app
 /// has no saved servers and onboarding hasn't been completed yet.
 class OnboardingScreen extends StatelessWidget {
@@ -28,42 +30,62 @@ class OnboardingScreen extends StatelessWidget {
     ];
 
     return Scaffold(
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 48),
-              Icon(Icons.terminal, size: 64, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(Icons.terminal, size: 36, color: AppColors.accent),
+                ),
+              ),
+              const SizedBox(height: 24),
               Center(
                 child: Text(
                   'ProjectX',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 28, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
               Center(
                 child: Text(
                   'Your desktop, in your pocket',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: GoogleFonts.inter(fontSize: 14, color: AppColors.textMuted),
                 ),
               ),
               const SizedBox(height: 40),
               Expanded(
                 child: ListView.separated(
                   itemCount: features.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 20),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (_, i) => features[i],
                 ),
               ),
+              const SizedBox(height: 8),
               FilledButton(
                 onPressed: () => _finish(context),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Get started'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
+                child: const Text('Get started'),
               ),
               const SizedBox(height: 24),
             ],
@@ -82,22 +104,40 @@ class _Feature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.secondary),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: AppColors.accent),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

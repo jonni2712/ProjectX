@@ -5,6 +5,7 @@ import '../providers/file_provider.dart';
 import '../providers/terminal_provider.dart' as tp;
 import '../providers/tab_provider.dart';
 import '../models/file_node.dart';
+import '../config/theme.dart';
 
 class FileManagerScreen extends ConsumerStatefulWidget {
   const FileManagerScreen({super.key});
@@ -77,8 +78,8 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+              title: const Text('Delete', style: TextStyle(color: AppColors.danger)),
               onTap: () {
                 Navigator.pop(ctx);
                 _confirmDelete(node);
@@ -122,7 +123,7 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () {
               ref.read(fileProvider.notifier).deleteFile(node.path);
               Navigator.pop(ctx);
@@ -148,15 +149,117 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
   }
 
   Color _fileIconColor(FileNode node) {
-    if (node.isDirectory) return const Color(0xFF4C8DFF);
+    if (node.isDirectory) return AppColors.accent;
     switch (node.extension) {
-      case 'dart': return const Color(0xFF3FB950);
+      case 'dart': return AppColors.success;
+      // Language brand colors (file-type coding, akin to a syntax palette).
       case 'ts': case 'tsx': return const Color(0xFF3178C6);
       case 'js': case 'jsx': return const Color(0xFFF7DF1E);
       case 'json': return const Color(0xFFFFB347);
-      case 'md': return const Color(0xFF8B949E);
-      default: return const Color(0xFF6E7681);
+      case 'md': return AppColors.textMuted;
+      default: return AppColors.textDim;
     }
+  }
+
+  Widget _buildFileList(FileState fileState) {
+    final isSearchView = _searchResults != null;
+    final nodes = _searchResults ?? fileState.entries;
+
+    if (nodes.isEmpty) {
+      return _buildEmptyState(isSearchView: isSearchView);
+    }
+
+    return RefreshIndicator(
+      color: AppColors.accent,
+      backgroundColor: AppColors.surface,
+      onRefresh: () =>
+          ref.read(fileProvider.notifier).loadDirectory(fileState.currentPath),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: nodes.length,
+        itemBuilder: (context, index) {
+          final node = nodes[index];
+          return ListTile(
+            leading: Icon(_fileIcon(node), color: _fileIconColor(node), size: 22),
+            title: Text(
+              node.name,
+              style: GoogleFonts.jetBrainsMono(fontSize: 14, color: AppColors.text),
+            ),
+            subtitle: node.isFile
+                ? Text(
+                    node.sizeFormatted,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      color: AppColors.textDim,
+                    ),
+                  )
+                : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (node.locked)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 4),
+                    child: Icon(Icons.lock, size: 16, color: AppColors.warning),
+                  ),
+                if (node.isDirectory)
+                  const Icon(Icons.chevron_right, size: 20, color: AppColors.textDim),
+              ],
+            ),
+            onTap: () {
+              if (node.isDirectory) {
+                ref.read(fileProvider.notifier).loadDirectory(node.path);
+              } else {
+                ref.read(fileProvider.notifier).openFile(node.path);
+                ref.read(selectedTabProvider.notifier).state = 1;
+              }
+            },
+            onLongPress: () => _showFileActions(node),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required bool isSearchView}) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSearchView ? Icons.search_off : Icons.folder_open,
+              size: 60,
+              color: AppColors.textDim,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isSearchView ? 'No matches' : 'Empty folder',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.text,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isSearchView
+                  ? 'No files match your search.'
+                  : 'There are no files or folders here yet.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+            if (!isSearchView) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => _showCreateDialog(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New File'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -219,28 +322,31 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
       body: Column(
         children: [
           // Breadcrumb
-          SizedBox(
+          Container(
             height: 40,
+            color: AppColors.surface,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: fileState.breadcrumbs.length,
-              separatorBuilder: (_, __) => const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+              separatorBuilder: (_, __) =>
+                  const Icon(Icons.chevron_right, size: 16, color: AppColors.textDim),
               itemBuilder: (context, index) {
                 final crumb = fileState.breadcrumbs[index];
                 final label = crumb == '/' ? 'Root' : crumb.split('/').last;
+                final isLast = index == fileState.breadcrumbs.length - 1;
                 return Center(
                   child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
                     onTap: () => ref.read(fileProvider.notifier).loadDirectory(crumb),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       child: Text(
                         label,
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 12,
-                          color: index == fileState.breadcrumbs.length - 1
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey,
+                          fontWeight: isLast ? FontWeight.w600 : FontWeight.w400,
+                          color: isLast ? AppColors.text : AppColors.textMuted,
                         ),
                       ),
                     ),
@@ -253,41 +359,10 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
           // File list
           Expanded(
             child: fileState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: () => ref.read(fileProvider.notifier).loadDirectory(fileState.currentPath),
-                    child: ListView.builder(
-                      itemCount: (_searchResults ?? fileState.entries).length,
-                      itemBuilder: (context, index) {
-                        final node = (_searchResults ?? fileState.entries)[index];
-                        return ListTile(
-                          leading: Icon(_fileIcon(node), color: _fileIconColor(node)),
-                          title: Text(node.name, style: GoogleFonts.jetBrainsMono(fontSize: 14)),
-                          subtitle: node.isFile
-                              ? Text(node.sizeFormatted, style: const TextStyle(fontSize: 11))
-                              : null,
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (node.locked)
-                                const Icon(Icons.lock, size: 16, color: Colors.orange),
-                              if (node.isDirectory)
-                                const Icon(Icons.chevron_right, size: 20),
-                            ],
-                          ),
-                          onTap: () {
-                            if (node.isDirectory) {
-                              ref.read(fileProvider.notifier).loadDirectory(node.path);
-                            } else {
-                              ref.read(fileProvider.notifier).openFile(node.path);
-                              ref.read(selectedTabProvider.notifier).state = 1;
-                            }
-                          },
-                          onLongPress: () => _showFileActions(node),
-                        );
-                      },
-                    ),
-                  ),
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  )
+                : _buildFileList(fileState),
           ),
         ],
       ),

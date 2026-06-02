@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../config/theme.dart';
+
 /// Full-screen camera QR scanner. Pops with the decoded string (rawValue) of
 /// the first barcode detected, or null if the user backs out.
 class QrScanScreen extends StatefulWidget {
@@ -52,22 +54,34 @@ class _QrScanScreenState extends State<QrScanScreen> {
         alignment: Alignment.center,
         children: [
           MobileScanner(controller: _controller, onDetect: _onDetect),
+          // Dim the area outside the scan window for focus.
+          Container(color: AppColors.canvas.withValues(alpha: 0.45)),
+          // Scan window frame.
           Container(
             width: 240,
             height: 240,
             decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).colorScheme.primary, width: 3),
+              color: Colors.transparent,
+              border: Border.all(color: AppColors.accent, width: 2),
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          const Positioned(
+          Positioned(
             bottom: 48,
             left: 24,
             right: 24,
-            child: Text(
-              'Point the camera at the QR code shown by the ProjectX desktop app',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, backgroundColor: Colors.black54),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.9),
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Point the camera at the QR code shown by the ProjectX desktop app',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textMuted, height: 1.4),
+              ),
             ),
           ),
         ],

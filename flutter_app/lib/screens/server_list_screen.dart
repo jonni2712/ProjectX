@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../config/api_config.dart';
+import '../config/theme.dart';
 import '../models/server_profile.dart';
 import '../services/server_store.dart';
 import 'qr_scan_screen.dart';
@@ -66,7 +68,7 @@ class _ServerListScreenState extends State<ServerListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('That QR code is not a valid ProjectX server'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.danger,
         ),
       );
       return;
@@ -97,31 +99,107 @@ class _ServerListScreenState extends State<ServerListScreen> {
         label: const Text('Add server'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : _servers.isEmpty
               ? _EmptyServers(onAdd: _addManual, onScan: _scanQr)
               : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                   itemCount: _servers.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final s = _servers[i];
                     final isCurrent = s.id == _currentId;
-                    return ListTile(
-                      leading: Icon(
-                        isCurrent ? Icons.check_circle : Icons.dns_outlined,
-                        color: isCurrent ? Theme.of(context).colorScheme.secondary : null,
-                      ),
-                      title: Text(s.name),
-                      subtitle: Text(s.url),
+                    return _ServerCard(
+                      server: s,
+                      isCurrent: isCurrent,
                       onTap: () => _select(s),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: 'Remove',
-                        onPressed: () => _delete(s),
-                      ),
+                      onDelete: () => _delete(s),
                     );
                   },
                 ),
+    );
+  }
+}
+
+/// A single saved-server row rendered as a surface card with a status dot.
+class _ServerCard extends StatelessWidget {
+  final ServerProfile server;
+  final bool isCurrent;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _ServerCard({
+    required this.server,
+    required this.isCurrent,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isCurrent ? AppColors.accent : AppColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isCurrent ? AppColors.success : AppColors.textDim,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      server.name,
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      server.url,
+                      style: GoogleFonts.jetBrainsMono(
+                        color: AppColors.textMuted,
+                        fontSize: 12.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppColors.textDim,
+                tooltip: 'Remove',
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -134,34 +212,41 @@ class _EmptyServers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.dns_outlined, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('No servers yet'),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.dns_outlined, size: 56, color: AppColors.textDim),
+            const SizedBox(height: 20),
+            const Text(
+              'No servers yet',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
               'Add your ProjectX server by scanning the QR code from the desktop app, or enter its URL manually.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.4),
             ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: onScan,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan QR code'),
-          ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: const Text('Enter URL manually'),
-          ),
-        ],
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onScan,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan QR code'),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              label: const Text('Enter URL manually'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -190,7 +275,7 @@ class _AddServerDialogState extends State<_AddServerDialog> {
     final uri = Uri.tryParse(url);
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid http(s) URL'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Enter a valid http(s) URL'), backgroundColor: AppColors.danger),
       );
       return;
     }

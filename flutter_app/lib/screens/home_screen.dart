@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/theme.dart';
 import '../providers/connection_provider.dart';
 import '../providers/file_provider.dart';
 import '../providers/tab_provider.dart';
@@ -61,12 +62,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (!connectionState.isConnected)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              color: connectionState.isConnecting ? Colors.orange : Colors.red,
-              child: Text(
-                connectionState.isConnecting ? 'Connecting...' : 'Disconnected',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: Colors.white),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              color: connectionState.isConnecting
+                  ? AppColors.warning
+                  : AppColors.danger,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    connectionState.isConnecting
+                        ? 'Connecting...'
+                        : 'Disconnected',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
           BottomNavigationBar(

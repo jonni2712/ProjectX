@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../config/theme.dart';
 import '../providers/user_provider.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
@@ -65,7 +66,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               ),
               if (error != null) ...[
                 const SizedBox(height: 8),
-                Text(error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
               ],
             ],
           ),
@@ -144,7 +145,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               ),
               if (error != null) ...[
                 const SizedBox(height: 8),
-                Text(error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                Text(error!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
               ],
             ],
           ),
@@ -199,7 +200,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: isActive ? Colors.red : Colors.green,
+              backgroundColor: isActive ? AppColors.danger : AppColors.success,
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(isActive ? 'Deactivate' : 'Activate'),
@@ -216,7 +217,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       if (mounted) {
         if (error != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), backgroundColor: Colors.red),
+            SnackBar(content: Text(error), backgroundColor: AppColors.danger),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -232,47 +233,91 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final userListState = ref.watch(userListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        backgroundColor: const Color(0xFF161B22),
+        backgroundColor: AppColors.surface,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
             onPressed: () => ref.read(userListProvider.notifier).loadUsers(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4C8DFF),
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
         onPressed: _showCreateUserDialog,
-        child: const Icon(Icons.person_add, color: Colors.white),
+        child: const Icon(Icons.person_add),
       ),
       body: userListState.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.accent),
+            )
           : userListState.error != null
               ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        userListState.error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () => ref.read(userListProvider.notifier).loadUsers(),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppColors.danger,
+                          size: 56,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          userListState.error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.textMuted),
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: () => ref.read(userListProvider.notifier).loadUsers(),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : userListState.users.isEmpty
                   ? Center(
-                      child: Text(
-                        'No users found',
-                        style: GoogleFonts.jetBrainsMono(color: Colors.grey),
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.group_outlined,
+                              color: AppColors.textDim,
+                              size: 60,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No users yet',
+                              style: TextStyle(
+                                color: AppColors.text,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Create the first account to get started.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                            ),
+                            const SizedBox(height: 20),
+                            FilledButton.icon(
+                              onPressed: _showCreateUserDialog,
+                              icon: const Icon(Icons.person_add),
+                              label: const Text('Create User'),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : RefreshIndicator(
@@ -286,64 +331,87 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           final role = user['role'] ?? 'user';
                           final isActive = user['active'] ?? true;
 
+                          final isAdmin = role == 'admin';
                           return Card(
-                            color: const Color(0xFF161B22),
+                            color: AppColors.surface,
                             margin: const EdgeInsets.only(bottom: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: AppColors.border),
+                            ),
                             child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                               leading: CircleAvatar(
                                 backgroundColor: isActive
-                                    ? (role == 'admin' ? const Color(0xFF4C8DFF) : const Color(0xFF3FB950))
-                                    : Colors.grey,
+                                    ? (isAdmin ? AppColors.accent : AppColors.surfaceAlt)
+                                    : AppColors.surfaceAlt,
                                 child: Icon(
-                                  role == 'admin' ? Icons.admin_panel_settings : Icons.person,
-                                  color: Colors.white,
+                                  isAdmin ? Icons.admin_panel_settings : Icons.person,
+                                  color: isActive
+                                      ? (isAdmin ? Colors.white : AppColors.textMuted)
+                                      : AppColors.textDim,
                                   size: 20,
                                 ),
                               ),
                               title: Row(
                                 children: [
-                                  Text(
-                                    username,
-                                    style: GoogleFonts.jetBrainsMono(
-                                      color: isActive ? Colors.white : Colors.grey,
-                                      fontWeight: FontWeight.w500,
+                                  Flexible(
+                                    child: Text(
+                                      username,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.jetBrainsMono(
+                                        color: isActive ? AppColors.text : AppColors.textDim,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: role == 'admin'
-                                          ? const Color(0xFF4C8DFF).withValues(alpha: 0.2)
-                                          : const Color(0xFF3FB950).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: isAdmin
+                                          ? AppColors.accent.withValues(alpha: 0.16)
+                                          : AppColors.surfaceAlt,
+                                      borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
-                                        color: role == 'admin'
-                                            ? const Color(0xFF4C8DFF)
-                                            : const Color(0xFF3FB950),
+                                        color: isAdmin ? AppColors.accent : AppColors.border,
                                       ),
                                     ),
                                     child: Text(
-                                      role == 'admin' ? 'Admin' : 'User',
+                                      isAdmin ? 'Admin' : 'User',
                                       style: GoogleFonts.jetBrainsMono(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
-                                        color: role == 'admin'
-                                            ? const Color(0xFF4C8DFF)
-                                            : const Color(0xFF3FB950),
+                                        color: isAdmin ? AppColors.accent : AppColors.textMuted,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              subtitle: Text(
-                                isActive ? 'Active' : 'Inactive',
-                                style: TextStyle(
-                                  color: isActive ? Colors.green : Colors.red,
-                                  fontSize: 12,
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isActive ? AppColors.success : AppColors.textDim,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isActive ? 'Active' : 'Inactive',
+                                      style: TextStyle(
+                                        color: isActive ? AppColors.success : AppColors.textMuted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                              trailing: const Icon(Icons.chevron_right, color: AppColors.textDim),
                               onTap: () => _showEditUserDialog(user),
                               onLongPress: () => _confirmDeactivateUser(user),
                             ),

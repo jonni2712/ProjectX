@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../config/theme.dart';
 import '../providers/git_provider.dart';
 
 class GitScreen extends ConsumerStatefulWidget {
@@ -52,7 +53,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
             if (gitState.currentBranch != null)
               Text(
                 gitState.currentBranch!,
-                style: TextStyle(fontSize: 11, color: theme.colorScheme.primary),
+                style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.accent),
               ),
           ],
         ),
@@ -107,50 +108,72 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         ),
       ),
       body: gitState.isLoading || gitState.isScanning
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
           : gitState.discoveredRepos.isEmpty && _hasScanned
               ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.source_outlined, size: 48, color: Colors.grey[600]),
-                      const SizedBox(height: 12),
-                      Text('No git repositories found',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 15)),
-                      const SizedBox(height: 8),
-                      Text('Upload or initialize a project first',
-                          style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-                      const SizedBox(height: 20),
-                      FilledButton.icon(
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Scan Again'),
-                        onPressed: _scanRepos,
-                      ),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.source_outlined, size: 56, color: AppColors.textDim),
+                        const SizedBox(height: 16),
+                        const Text('No git repositories found',
+                            style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        const Text('Upload or initialize a project first',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Scan Again'),
+                          onPressed: _scanRepos,
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : gitState.repoPath == null
                   ? Center(
-                      child: Text('Select a repository above',
-                          style: TextStyle(color: Colors.grey[600])),
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.account_tree_outlined, size: 56, color: AppColors.textDim),
+                            SizedBox(height: 16),
+                            Text('Select a repository above',
+                                style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 8),
+                            Text('Pick a repo from the list to view its changes',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     )
                   : gitState.error != null
                       ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.error_outline, size: 48, color: Colors.grey[600]),
-                              const SizedBox(height: 8),
-                              Text(gitState.error!,
-                                  style: TextStyle(color: Colors.grey[600])),
-                              const SizedBox(height: 16),
-                              FilledButton(
-                                onPressed: () {
-                                  ref.read(gitProvider.notifier).loadRepo(gitState.repoPath!);
-                                },
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.error_outline, size: 56, color: AppColors.danger),
+                                const SizedBox(height: 16),
+                                Text(gitState.error!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                                const SizedBox(height: 24),
+                                FilledButton(
+                                  onPressed: () {
+                                    ref.read(gitProvider.notifier).loadRepo(gitState.repoPath!);
+                                  },
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       : TabBarView(
@@ -172,14 +195,14 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         // Status summary
         if (gitState.status != null)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                _statusChip('Ahead', gitState.status!.ahead, Colors.green),
+                _statusChip('Ahead', gitState.status!.ahead, AppColors.success),
                 const SizedBox(width: 8),
-                _statusChip('Behind', gitState.status!.behind, Colors.orange),
+                _statusChip('Behind', gitState.status!.behind, AppColors.warning),
                 const SizedBox(width: 8),
-                _statusChip('Changed', files.length, theme.colorScheme.primary),
+                _statusChip('Changed', files.length, AppColors.accent),
               ],
             ),
           ),
@@ -187,9 +210,24 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         Expanded(
           child: files.isEmpty
               ? Center(
-                  child: Text('No changes', style: TextStyle(color: Colors.grey[600])),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.check_circle_outline, size: 56, color: AppColors.textDim),
+                        SizedBox(height: 16),
+                        Text('No changes',
+                            style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 8),
+                        Text('Working tree is clean',
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                      ],
+                    ),
+                  ),
                 )
               : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   itemCount: files.length,
                   itemBuilder: (context, index) {
                     final file = files[index];
@@ -202,10 +240,13 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
                       ),
                       title: Text(
                         file.path,
-                        style: GoogleFonts.jetBrainsMono(fontSize: 12),
+                        style: GoogleFonts.jetBrainsMono(fontSize: 12, color: AppColors.text),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(file.statusLabel, style: const TextStyle(fontSize: 11)),
+                      subtitle: Text(
+                        file.statusLabel,
+                        style: TextStyle(fontSize: 11, color: _statusColor(file.statusLabel)),
+                      ),
                       trailing: _statusIcon(file),
                     );
                   },
@@ -214,10 +255,10 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         // Commit area
         if (files.isNotEmpty)
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161B22),
-              border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.border)),
             ),
             child: SafeArea(
               top: false,
@@ -230,9 +271,9 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
                       isDense: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    style: GoogleFonts.jetBrainsMono(fontSize: 13),
+                    style: GoogleFonts.jetBrainsMono(fontSize: 13, color: AppColors.text),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -257,24 +298,46 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
   Widget _buildLogTab(GitState gitState, ThemeData theme) {
     final logs = gitState.log;
     return logs.isEmpty
-        ? Center(child: Text('No commits', style: TextStyle(color: Colors.grey[600])))
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.history, size: 56, color: AppColors.textDim),
+                  SizedBox(height: 16),
+                  Text('No commits',
+                      style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 8),
+                  Text('Commit history will appear here',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                ],
+              ),
+            ),
+          )
         : ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 4),
             itemCount: logs.length,
             itemBuilder: (context, index) {
               final entry = logs[index];
               return ListTile(
                 leading: CircleAvatar(
                   radius: 16,
-                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  backgroundColor: AppColors.accent.withValues(alpha: 0.16),
                   child: Text(
                     entry.authorName.isNotEmpty ? entry.authorName[0].toUpperCase() : '?',
-                    style: TextStyle(color: theme.colorScheme.primary, fontSize: 14),
+                    style: const TextStyle(color: AppColors.accent, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
-                title: Text(entry.message, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  entry.message,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AppColors.text),
+                ),
                 subtitle: Text(
                   '${entry.shortHash} - ${entry.authorName}',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: Colors.grey),
+                  style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.textMuted),
                 ),
               );
             },
@@ -282,7 +345,27 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
   }
 
   Widget _buildBranchesTab(GitState gitState, ThemeData theme) {
+    if (gitState.branches.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.account_tree_outlined, size: 56, color: AppColors.textDim),
+              SizedBox(height: 16),
+              Text('No branches',
+                  style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w600)),
+              SizedBox(height: 8),
+              Text('Branches will appear here',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+            ],
+          ),
+        ),
+      );
+    }
     return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       itemCount: gitState.branches.length,
       itemBuilder: (context, index) {
         final branch = gitState.branches[index];
@@ -290,12 +373,13 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         return ListTile(
           leading: Icon(
             isCurrent ? Icons.check_circle : Icons.circle_outlined,
-            color: isCurrent ? theme.colorScheme.primary : Colors.grey,
+            color: isCurrent ? AppColors.accent : AppColors.textDim,
           ),
           title: Text(
             branch,
             style: GoogleFonts.jetBrainsMono(
               fontSize: 14,
+              color: isCurrent ? AppColors.text : AppColors.textMuted,
               fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -307,37 +391,39 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
 
   Widget _statusChip(String label, int count, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
-      child: Text('$label: $count', style: TextStyle(fontSize: 11, color: color)),
+      child: Text(
+        '$label: $count',
+        style: GoogleFonts.jetBrainsMono(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
-  Widget _statusIcon(dynamic file) {
-    Color color;
-    switch (file.statusLabel) {
+  Color _statusColor(String statusLabel) {
+    switch (statusLabel) {
       case 'Modified':
-        color = Colors.orange;
-        break;
+        return AppColors.warning;
       case 'Added':
-        color = Colors.green;
-        break;
+        return AppColors.success;
       case 'Deleted':
-        color = Colors.red;
-        break;
+        return AppColors.danger;
       case 'Untracked':
-        color = Colors.grey;
-        break;
+        return AppColors.textDim;
       default:
-        color = Colors.grey;
+        return AppColors.textDim;
     }
+  }
+
+  Widget _statusIcon(dynamic file) {
     return Container(
       width: 8,
       height: 8,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: _statusColor(file.statusLabel), shape: BoxShape.circle),
     );
   }
 }
@@ -360,11 +446,11 @@ class _RepoSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isScanning) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 12),
         child: SizedBox(
           height: 20,
           width: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
         ),
       );
     }
@@ -393,23 +479,23 @@ class _RepoSelector extends StatelessWidget {
                   Icon(
                     Icons.account_tree,
                     size: 14,
-                    color: isActive ? const Color(0xFF0D1117) : const Color(0xFF4C8DFF),
+                    color: isActive ? AppColors.canvas : AppColors.accent,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     repoName,
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 12,
-                      color: isActive ? const Color(0xFF0D1117) : const Color(0xFFE6EDF3),
+                      color: isActive ? AppColors.canvas : AppColors.text,
                     ),
                   ),
                 ],
               ),
               selected: isActive,
-              selectedColor: const Color(0xFF4C8DFF),
-              backgroundColor: const Color(0xFF161B22),
+              selectedColor: AppColors.accent,
+              backgroundColor: AppColors.surface,
               side: BorderSide(
-                color: isActive ? const Color(0xFF4C8DFF) : const Color(0xFF21262D),
+                color: isActive ? AppColors.accent : AppColors.border,
               ),
               onSelected: (_) => onSelected(repo),
             ),

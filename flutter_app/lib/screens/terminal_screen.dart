@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:xterm/xterm.dart';
+import '../config/theme.dart';
 import '../providers/terminal_provider.dart' as tp;
 import '../providers/file_provider.dart';
 import '../providers/connection_provider.dart';
@@ -199,19 +200,35 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       ),
       body: termState.sessions.isEmpty
           ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.terminal, size: 64, color: Colors.grey[700]),
-                  const SizedBox(height: 16),
-                  const Text('No active terminals'),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('New Terminal'),
-                    onPressed: () => _createTerminalWithSize(context),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.terminal, size: 60, color: AppColors.textDim),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No active terminals',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Open a new terminal to start a shell session.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('New Terminal'),
+                      onPressed: () => _createTerminalWithSize(context),
+                    ),
+                  ],
+                ),
               ),
             )
           : termState.activeSessionId != null
@@ -297,11 +314,14 @@ class _SpecialKeysBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
-      color: const Color(0xFF0D1117),
+      height: 40,
+      decoration: const BoxDecoration(
+        color: AppColors.canvas,
+        border: Border(top: BorderSide(color: AppColors.borderMuted)),
+      ),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         children: [
           _KeyButton('Ctrl', onKey: () => onKey('ctrl'), active: ctrlPressed),
           _KeyButton('Tab', onKey: () => onKey('tab')),
@@ -310,7 +330,7 @@ class _SpecialKeysBar extends StatelessWidget {
           _KeyButton('C-d', onKey: () => onKey('ctrl+d')),
           _KeyButton('C-z', onKey: () => onKey('ctrl+z')),
           _KeyButton('C-l', onKey: () => onKey('ctrl+l')),
-          const VerticalDivider(width: 8, color: Colors.white12),
+          const VerticalDivider(width: 12, indent: 8, endIndent: 8, color: AppColors.border),
           _KeyButton('\u2190', onKey: () => onKey('left')),
           _KeyButton('\u2193', onKey: () => onKey('down')),
           _KeyButton('\u2191', onKey: () => onKey('up')),
@@ -331,9 +351,9 @@ class _KeyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
       child: Material(
-        color: active ? const Color(0xFF4C8DFF) : const Color(0xFF161B22),
+        color: active ? AppColors.accent : AppColors.surface,
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           onTap: onKey,
@@ -341,12 +361,18 @@ class _KeyButton extends StatelessWidget {
           child: Container(
             constraints: const BoxConstraints(minWidth: 38),
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: active ? AppColors.accent : AppColors.border,
+              ),
+            ),
             child: Text(
               label,
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 12,
-                color: active ? Colors.white : const Color(0xFFAAAAAA),
+                color: active ? Colors.white : AppColors.textMuted,
                 fontWeight: active ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -374,46 +400,58 @@ class _TerminalInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: const BoxDecoration(
-        color: Color(0xFF161B22),
-        border: Border(top: BorderSide(color: Colors.white10)),
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
         child: Row(
           children: [
-            const Text(
+            Text(
               '\$',
-              style: TextStyle(color: Color(0xFF3FB950), fontSize: 16, fontWeight: FontWeight.bold),
+              style: GoogleFonts.jetBrainsMono(
+                color: AppColors.success,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: controller,
                 focusNode: focusNode,
-                style: GoogleFonts.jetBrainsMono(fontSize: 14, color: Colors.white),
+                style: GoogleFonts.jetBrainsMono(fontSize: 14, color: AppColors.text),
                 decoration: InputDecoration(
                   hintText: 'Type command...',
-                  hintStyle: GoogleFonts.jetBrainsMono(fontSize: 14, color: const Color(0xFF6E7681)),
+                  hintStyle: GoogleFonts.jetBrainsMono(fontSize: 14, color: AppColors.textDim),
                   filled: true,
-                  fillColor: const Color(0xFF0D1117),
+                  fillColor: AppColors.inset,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
                   ),
                 ),
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSubmit(),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             IconButton(
               onPressed: onSubmit,
               icon: const Icon(Icons.send, size: 20),
-              color: const Color(0xFF4C8DFF),
+              color: AppColors.accent,
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               padding: EdgeInsets.zero,
             ),

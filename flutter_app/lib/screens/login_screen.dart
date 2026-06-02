@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../config/api_config.dart';
+import '../config/theme.dart';
 import '../models/server_profile.dart';
 import '../services/server_store.dart';
 import 'server_list_screen.dart';
@@ -74,7 +75,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final parsed = ServerStore.parseQr(raw);
     if (parsed == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That QR code is not a valid ProjectX server'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('That QR code is not a valid ProjectX server'),
+          backgroundColor: AppColors.danger,
+        ),
       );
       return;
     }
@@ -106,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!success && mounted) {
       final error = ref.read(authStateProvider).error ?? 'Login failed';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+        SnackBar(content: Text(error), backgroundColor: AppColors.danger),
       );
     }
   }
@@ -123,12 +127,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.terminal, size: 64, color: Theme.of(context).colorScheme.primary),
+                const Icon(Icons.terminal, size: 64, color: AppColors.accent),
                 const SizedBox(height: 16),
-                Text('ProjectX', style: GoogleFonts.jetBrainsMono(fontSize: 28, fontWeight: FontWeight.bold)),
+                Text(
+                  'ProjectX',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text,
+                    letterSpacing: -0.5,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Remote Development', style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 48),
+                Text(
+                  'Remote Development',
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 40),
                 TextField(
                   controller: _serverController,
                   keyboardType: TextInputType.url,
@@ -143,6 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
@@ -153,7 +169,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _usernameController,
                   decoration: const InputDecoration(
@@ -183,7 +199,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: FilledButton(
                     onPressed: authState.isLoading ? null : _login,
                     child: authState.isLoading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
                         : const Text('Connect'),
                   ),
                 ),

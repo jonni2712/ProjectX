@@ -5,9 +5,22 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.14] - 2026-06-02 (server, unreleased) — Data-integrity & audit-trail hardening (P2)
+## App 1.0.5 / Desktop 1.1.16 - 2026-06-02 — Flutter IDE-dark UI polish
 
-_Bundled into the next desktop release._
+Ships the held server 1.1.14 data-integrity batch (below) to the desktop.
+
+### Changed
+- **Every Flutter screen polished to the IDE-dark design system.** All 12 screens
+  (files, editor, terminal, Claude, git, admin, profile, login, onboarding,
+  server list, QR scan, home) were swept to use the `AppColors` tokens instead of
+  hardcoded colors — **145 hardcoded colors removed** — with consistent 4/8-grid
+  spacing, monospace (JetBrains Mono) for code/paths/hashes/branches, semantic
+  status colors (success/warning/danger), bordered surface cards, and proper
+  empty / loading / error states. Presentation-only: provider wiring and all
+  behavior verified unchanged (`flutter analyze` clean; provider-call multisets
+  identical per screen).
+
+## [1.1.14] - 2026-06-02 (server) — Data-integrity & audit-trail hardening (P2)
 
 ### Fixed
 - **Silent overwrite on rename/move/copy** — `renameEntry`, `moveEntry`, and

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../config/theme.dart';
 import '../providers/claude_provider.dart';
 import '../providers/file_provider.dart';
 import '../providers/connection_provider.dart';
@@ -54,7 +55,6 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
   Widget build(BuildContext context) {
     final claudeState = ref.watch(claudeProvider);
     final connectionState = ref.watch(connectionStateProvider);
-    final theme = Theme.of(context);
 
     // Auto-scroll when streaming
     if (claudeState.isStreaming) {
@@ -69,9 +69,7 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)],
-                ),
+                color: AppColors.accent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.smart_toy, size: 16, color: Colors.white),
@@ -80,7 +78,7 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
             const Text('Claude'),
             const SizedBox(width: 8),
             if (claudeState.isStreaming)
-              _PulsingDot(color: theme.colorScheme.primary),
+              const _PulsingDot(color: AppColors.accent),
           ],
         ),
         actions: [
@@ -106,15 +104,20 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.orange.withValues(alpha: 0.15),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                border: const Border(
+                  bottom: BorderSide(color: AppColors.border),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.wifi_off, size: 16, color: Colors.orange),
+                  const Icon(Icons.wifi_off, size: 16, color: AppColors.warning),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'WebSocket disconnected — Claude needs an active connection',
-                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.warning),
                     ),
                   ),
                   TextButton(
@@ -148,15 +151,20 @@ class _ClaudeScreenState extends ConsumerState<ClaudeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.red.withValues(alpha: 0.1),
+              decoration: BoxDecoration(
+                color: AppColors.danger.withValues(alpha: 0.12),
+                border: const Border(
+                  top: BorderSide(color: AppColors.border),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 16, color: AppColors.danger),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       claudeState.error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      style: GoogleFonts.inter(color: AppColors.danger, fontSize: 12),
                     ),
                   ),
                 ],
@@ -183,46 +191,49 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF4C8DFF).withValues(alpha: 0.2),
-                  const Color(0xFF3FB950).withValues(alpha: 0.2),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
               ),
-              borderRadius: BorderRadius.circular(24),
+              child: const Icon(Icons.smart_toy, size: 36, color: AppColors.accent),
             ),
-            child: const Icon(Icons.smart_toy, size: 40, color: Color(0xFF4C8DFF)),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Ask Claude anything',
-            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFFE6EDF3)),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Code questions, debugging, refactoring...',
-            style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              _SuggestionChip(label: 'Explain this code'),
-              _SuggestionChip(label: 'Find bugs'),
-              _SuggestionChip(label: 'Refactor'),
-              _SuggestionChip(label: 'Write tests'),
-            ],
-          ),
-        ],
+            const SizedBox(height: 20),
+            Text(
+              'Ask Claude anything',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Code questions, debugging, refactoring...',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _SuggestionChip(label: 'Explain this code'),
+                _SuggestionChip(label: 'Find bugs'),
+                _SuggestionChip(label: 'Refactor'),
+                _SuggestionChip(label: 'Write tests'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -235,9 +246,13 @@ class _SuggestionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      backgroundColor: const Color(0xFF161B22),
-      side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
+      ),
+      backgroundColor: AppColors.surface,
+      side: const BorderSide(color: AppColors.border),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onPressed: () {},
     );
   }
@@ -253,11 +268,10 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
-    final theme = Theme.of(context);
 
     return Container(
       width: double.infinity,
-      color: isUser ? Colors.transparent : const Color(0xFF161B22),
+      color: isUser ? Colors.transparent : AppColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,22 +280,25 @@ class _MessageBubble extends StatelessWidget {
           Row(
             children: [
               if (isUser)
-                const CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Color(0xFF4C8DFF),
-                  child: Icon(Icons.person, size: 14, color: Colors.white),
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.person, size: 14, color: Colors.white),
                 )
               else
                 Container(
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)],
-                    ),
+                    color: AppColors.surfaceAlt,
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border),
                   ),
-                  child: const Icon(Icons.smart_toy, size: 14, color: Colors.white),
+                  child: const Icon(Icons.smart_toy, size: 14, color: AppColors.accent),
                 ),
               const SizedBox(width: 8),
               Text(
@@ -289,7 +306,7 @@ class _MessageBubble extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isUser ? const Color(0xFF4C8DFF) : const Color(0xFF3FB950),
+                  color: isUser ? AppColors.accent : AppColors.text,
                 ),
               ),
               const Spacer(),
@@ -308,18 +325,18 @@ class _MessageBubble extends StatelessWidget {
               padding: const EdgeInsets.only(top: 8),
               child: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: theme.colorScheme.primary,
+                      color: AppColors.accent,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Thinking...',
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -414,9 +431,9 @@ class _CodeBlock extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF010409),
+        color: AppColors.inset,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,11 +441,14 @@ class _CodeBlock extends StatelessWidget {
           // Header with language and copy button
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: const BorderRadius.only(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
+              ),
+              border: Border(
+                bottom: BorderSide(color: AppColors.border),
               ),
             ),
             child: Row(
@@ -437,7 +457,7 @@ class _CodeBlock extends StatelessWidget {
                   language.isNotEmpty ? language : 'code',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 11,
-                    color: Colors.grey,
+                    color: AppColors.textMuted,
                   ),
                 ),
                 const Spacer(),
@@ -454,7 +474,7 @@ class _CodeBlock extends StatelessWidget {
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 13,
                 height: 1.5,
-                color: const Color(0xFFE6EDF3),
+                color: AppColors.text,
               ),
             ),
           ),
@@ -478,7 +498,7 @@ class _TextBlock extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 14,
           height: 1.6,
-          color: const Color(0xFFE6EDF3),
+          color: AppColors.text,
         ),
       ),
     );
@@ -519,8 +539,8 @@ class _TextBlock extends StatelessWidget {
           text: earliest.group(1),
           style: GoogleFonts.jetBrainsMono(
             fontSize: 13,
-            backgroundColor: const Color(0xFF161B22),
-            color: const Color(0xFF3FB950),
+            backgroundColor: AppColors.inset,
+            color: AppColors.accent,
           ),
         ));
       } else {
@@ -568,7 +588,7 @@ class _CopyButtonState extends State<_CopyButton> {
         child: Icon(
           _copied ? Icons.check : Icons.copy,
           size: widget.size,
-          color: _copied ? const Color(0xFF3FB950) : Colors.grey,
+          color: _copied ? AppColors.success : AppColors.textDim,
         ),
       ),
     );
@@ -640,9 +660,9 @@ class _InputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
@@ -655,11 +675,15 @@ class _InputBar extends StatelessWidget {
               padding: const EdgeInsets.only(left: 4, bottom: 6),
               child: Row(
                 children: [
-                  const Icon(Icons.folder_outlined, size: 12, color: Colors.grey),
+                  const Icon(Icons.folder_outlined, size: 12, color: AppColors.textDim),
                   const SizedBox(width: 4),
-                  Text(
-                    cwd == '/' ? 'workspace root' : cwd,
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: Colors.grey),
+                  Expanded(
+                    child: Text(
+                      cwd == '/' ? 'workspace root' : cwd,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.textDim),
+                    ),
                   ),
                 ],
               ),
@@ -676,17 +700,29 @@ class _InputBar extends StatelessWidget {
                     enabled: isConnected && !isStreaming,
                     textInputAction: TextInputAction.newline,
                     keyboardType: TextInputType.multiline,
-                    style: GoogleFonts.inter(fontSize: 14),
+                    style: GoogleFonts.inter(fontSize: 14, color: AppColors.text),
                     decoration: InputDecoration(
                       hintText: isConnected
                           ? (isStreaming ? 'Claude is thinking...' : 'Message Claude...')
                           : 'Connect to server first',
-                      hintStyle: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF6E7681)),
+                      hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.textDim),
                       filled: true,
-                      fillColor: const Color(0xFF0D1117),
+                      fillColor: AppColors.inset,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+                      ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.borderMuted),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -695,15 +731,20 @@ class _InputBar extends StatelessWidget {
                 const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
-                    gradient: isConnected && !isStreaming
-                        ? const LinearGradient(colors: [Color(0xFF4C8DFF), Color(0xFF3FB950)])
-                        : null,
-                    color: isConnected && !isStreaming ? null : Colors.grey.withValues(alpha: 0.3),
+                    color: isConnected && !isStreaming
+                        ? AppColors.accent
+                        : AppColors.surfaceAlt,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: IconButton(
                     onPressed: isConnected && !isStreaming ? onSend : null,
-                    icon: const Icon(Icons.arrow_upward, size: 20, color: Colors.white),
+                    icon: Icon(
+                      Icons.arrow_upward,
+                      size: 20,
+                      color: isConnected && !isStreaming
+                          ? Colors.white
+                          : AppColors.textDim,
+                    ),
                     constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                     padding: EdgeInsets.zero,
                   ),
