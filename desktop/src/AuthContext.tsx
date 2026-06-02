@@ -13,6 +13,7 @@ interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -25,7 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     checkServer();
     // Register a hook so api.ts can force the UI back to login if the server
-    // ever rejects our token (revoked from another device, deactivated, etc.)
+    // ever rejects our token for good (revoked from another device, deactivated,
+    // password changed — anything a refresh can't recover from).
     setOnUnauthenticated(() => {
       setState(s => ({ ...s, isAuthenticated: false, user: null }));
     });
@@ -33,12 +35,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function checkServer() {
+    setState(s => ({ ...s, isLoading: true }));
     try {
       // /setup/status doubles as a reachability check and tells us whether the
       // server still needs first-run configuration.
       const status = await api.setupStatus();
-      const needsSetup = status?.configured === false;
-      setState(s => ({ ...s, isLoading: false, serverOnline: true, needsSetup }));
+      if (status?.configured === false) {
+        setState(s => ({ ...s, isLoading: false, serverOnline: true, needsSetup: true, isAuthenticated: false, user: null }));
+        return;
+      }
+      // Configured server reachable — try to restore a persisted session so a
+      // reload or app restart doesn't bounce the user back to the login screen.
+      const user = await api.restoreSession();
+      setState(s => ({
+        ...s,
+        isLoading: false,
+        serverOnline: true,
+        needsSetup: false,
+        isAuthenticated: !!user,
+        user: user ? { username: user.username, role: user.role } : null,
+      }));
     } catch {
       setState(s => ({ ...s, isLoading: false, serverOnline: false }));
     }
@@ -62,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refresh: checkServer }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refresh: checkServer, isAdmin: state.user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,10 +12,19 @@ class WebSocketService {
   bool _connected = false;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
+  // Set by an explicit disconnect() so we stop fighting the user with retries.
+  bool _stopped = false;
   static const _maxReconnectDelay = 30;
 
   final _messageController = StreamController<WsMessage>.broadcast();
+  // Emits on every connection transition (true = up, false = lost). Providers
+  // subscribe to this so the UI and terminal state react to silent auto-
+  // reconnects — not only to the manual connect() call. Without it, the socket
+  // could come back while the app still shows "disconnected".
+  final _statusController = StreamController<bool>.broadcast();
+
   Stream<WsMessage> get messages => _messageController.stream;
+  Stream<bool> get connectionStatus => _statusController.stream;
   bool get isConnected => _connected;
 
   Stream<WsMessage> channelStream(String channel) =>
@@ -26,11 +35,23 @@ class WebSocketService {
 
   WebSocketService(this._auth);
 
+  // Flip the connection flag and notify listeners, but only on a real change so
+  // we don't spam the status stream.
+  void _setConnected(bool value) {
+    if (_connected == value) return;
+    _connected = value;
+    if (!_statusController.isClosed) _statusController.add(value);
+  }
+
   Future<bool> connect() async {
     if (_connected) return true;
+    _stopped = false;
 
     final ticket = await _auth.getWsTicket();
-    if (ticket == null) return false;
+    if (ticket == null) {
+      _scheduleReconnect();
+      return false;
+    }
 
     try {
       final wsUrl = '${ApiConfig.wsUrl}/ws?ticket=$ticket';
@@ -48,8 +69,8 @@ class WebSocketService {
         await _channel!.ready.timeout(const Duration(seconds: 10));
       }
 
-      _connected = true;
       _reconnectAttempts = 0;
+      _setConnected(true);
 
       _channel!.stream.listen(
         (data) {
@@ -59,18 +80,18 @@ class WebSocketService {
           } catch (_) {}
         },
         onDone: () {
-          _connected = false;
+          _setConnected(false);
           _scheduleReconnect();
         },
         onError: (_) {
-          _connected = false;
+          _setConnected(false);
           _scheduleReconnect();
         },
       );
 
       return true;
     } catch (_) {
-      _connected = false;
+      _setConnected(false);
       _scheduleReconnect();
       return false;
     }
@@ -83,15 +104,19 @@ class WebSocketService {
   }
 
   void _scheduleReconnect() {
+    if (_stopped) return; // explicit disconnect — don't auto-reconnect
     _reconnectTimer?.cancel();
     final delay = (_reconnectAttempts * 2).clamp(1, _maxReconnectDelay);
     _reconnectAttempts++;
-    _reconnectTimer = Timer(Duration(seconds: delay), () => connect());
+    _reconnectTimer = Timer(Duration(seconds: delay), () {
+      if (!_stopped) connect();
+    });
   }
 
   Future<void> disconnect() async {
+    _stopped = true;
     _reconnectTimer?.cancel();
-    _connected = false;
+    _setConnected(false);
     try {
       await _channel?.sink.close();
     } catch (_) {}
@@ -101,5 +126,6 @@ class WebSocketService {
   void dispose() {
     disconnect();
     _messageController.close();
+    _statusController.close();
   }
 }

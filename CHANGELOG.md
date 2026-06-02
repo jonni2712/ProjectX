@@ -5,6 +5,34 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Desktop 1.1.14 / App 1.0.4 - 2026-06-02 — Client session & reconnect resilience
+
+### Added
+- **Persistent desktop sessions** — the JWT and refresh token are now stored
+  (per-origin `localStorage`) and restored on reload/restart, so reopening the
+  app no longer drops you back at the login screen.
+- **Silent token refresh** — a `401` on an authenticated call now triggers a
+  single `/auth/refresh` + retry (one shared in-flight refresh for concurrent
+  calls) before bouncing to login. The short-lived JWT expiring (24h) is now
+  invisible instead of a forced re-login.
+- **Role-aware desktop UI** — non-admin users no longer see the admin-only
+  Users / Remote / Logs / Settings nav entries, and those routes render a clear
+  "Administrator access required" notice instead of a wall of `403`s. (A `403`
+  is correctly distinguished from a `401`, so a regular user is never logged
+  out for hitting an admin endpoint.)
+
+### Fixed
+- **Mobile app showed a stale connection state** — `WebSocketService` now emits
+  a connection-status stream, so `ConnectionState` updates on the *automatic*
+  reconnects the socket does on its own (previously the UI could show
+  "disconnected" while the socket was actually back, or vice versa).
+- **Terminals survived reconnect but the app didn't re-attach** — on reconnect
+  the app now resyncs the terminal list and re-attaches the active session; the
+  server replays its scrollback buffer, so a network blip no longer abandons a
+  live PTY.
+- **Offline "Retry Connection"** now re-probes the server in place instead of a
+  full window reload.
+
 ## [1.1.12] - 2026-06-02 (server) / Desktop 1.1.13 — P2 batch 1 (flows & tunnel)
 
 ### Fixed

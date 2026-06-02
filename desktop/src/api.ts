@@ -1,15 +1,73 @@
 const API_BASE = 'http://localhost:3000';
 
-let token: string | null = null;
+// Persisted so a window reload (or quitting/reopening the app) doesn't force a
+// fresh login. localStorage is per-origin and survives reloads in Electron.
+const TOKEN_KEY = 'projectx.token';
+const REFRESH_KEY = 'projectx.refreshToken';
+
+function readStorage(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeStorage(key: string, value: string | null) {
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch { /* storage unavailable — fall back to in-memory only */ }
+}
+
+let token: string | null = readStorage(TOKEN_KEY);
+let refreshToken: string | null = readStorage(REFRESH_KEY);
+
+function setTokens(t: string | null, r: string | null) {
+  token = t;
+  refreshToken = r;
+  writeStorage(TOKEN_KEY, t);
+  writeStorage(REFRESH_KEY, r);
+}
 
 // Callback registered by AuthContext to force a logout when the server tells
-// us our session was revoked (HTTP 401 on a previously-valid token).
+// us our session is truly gone (a 401 that even a token refresh can't fix).
 let onUnauthenticated: (() => void) | null = null;
 export function setOnUnauthenticated(cb: (() => void) | null) {
   onUnauthenticated = cb;
 }
 
-async function request(path: string, options: RequestInit = {}) {
+// A single shared refresh promise so a burst of concurrent 401s triggers exactly
+// one /auth/refresh round-trip instead of a stampede that would race-rotate the
+// refresh token and invalidate itself.
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function doRefresh(): Promise<boolean> {
+  if (!refreshToken) return false;
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!data.success || !data.data?.token) return false;
+      // Server rotates the refresh token on every use; keep the new one.
+      setTokens(data.data.token, data.data.refreshToken ?? refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+function endSession() {
+  setTokens(null, null);
+  if (onUnauthenticated) onUnauthenticated();
+}
+
+async function request(path: string, options: RequestInit = {}, retried = false): Promise<any> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -18,16 +76,18 @@ async function request(path: string, options: RequestInit = {}) {
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
-  // 401 on an authenticated request = stale/revoked token. Force the UI
-  // back to the login screen so the user can re-auth.
+  // 401 on an authenticated request usually just means the short-lived JWT
+  // expired. Try a single silent refresh + retry before bouncing to login.
   if (res.status === 401 && token) {
-    token = null;
-    if (onUnauthenticated) onUnauthenticated();
+    if (!retried) {
+      const refreshed = await doRefresh();
+      if (refreshed) return request(path, options, true);
+    }
+    // Refresh unavailable or the retried call still 401s (revoked, deactivated,
+    // password changed) — the session is genuinely dead.
+    endSession();
     let errMsg = 'Session expired';
-    try {
-      const data = await res.json();
-      errMsg = data.error || errMsg;
-    } catch { /* not JSON */ }
+    try { const data = await res.json(); errMsg = data.error || errMsg; } catch { /* not JSON */ }
     throw new Error(errMsg);
   }
 
@@ -43,12 +103,30 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
-    token = data.token;
+    setTokens(data.token, data.refreshToken ?? null);
     return data;
   },
 
   async getMe() {
     return request('/auth/me');
+  },
+
+  /**
+   * Re-establish a session from persisted tokens on app start / reload. Tries a
+   * proactive refresh when only the (longer-lived) refresh token survived, then
+   * validates by fetching the current user. Returns the user or null.
+   */
+  async restoreSession(): Promise<{ id: string; username: string; role: string } | null> {
+    if (!token && refreshToken) {
+      await doRefresh(); // JWT may have expired while the app was closed
+    }
+    if (!token) return null;
+    try {
+      const me = await request('/auth/me'); // auto-refreshes on a 401
+      return { id: me.id, username: me.username, role: me.role };
+    } catch {
+      return null;
+    }
   },
 
   /**
@@ -60,7 +138,7 @@ export const api = {
     try {
       await request('/auth/logout', { method: 'POST', body: '{}' });
     } catch { /* server unreachable — local logout still proceeds */ }
-    token = null;
+    setTokens(null, null);
   },
 
   isAuthenticated() { return !!token; },

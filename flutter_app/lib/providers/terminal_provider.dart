@@ -47,9 +47,25 @@ class TerminalNotifier extends StateNotifier<TerminalState> {
   final TerminalService _terminal;
   final WebSocketService _ws;
   StreamSubscription? _sub;
+  StreamSubscription<bool>? _statusSub;
+  // Skip the re-attach dance on the very first connect (nothing to restore yet).
+  bool _hadConnection = false;
 
   TerminalNotifier(this._terminal, this._ws) : super(const TerminalState()) {
     _sub = _ws.channelStream('terminal').listen(_handleTerminalEvent);
+    // The server keeps PTYs alive across socket drops, so on reconnect we resync
+    // the session list and re-attach the active terminal — the server replays its
+    // scrollback buffer on attach, so the user gets their session back intact.
+    _statusSub = _ws.connectionStatus.listen((connected) {
+      if (connected) {
+        if (_hadConnection) {
+          final active = state.activeSessionId;
+          _terminal.listTerminals();
+          if (active != null) _terminal.attachTerminal(active);
+        }
+        _hadConnection = true;
+      }
+    });
   }
 
   void _handleTerminalEvent(WsMessage msg) {
@@ -113,6 +129,7 @@ class TerminalNotifier extends StateNotifier<TerminalState> {
   @override
   void dispose() {
     _sub?.cancel();
+    _statusSub?.cancel();
     super.dispose();
   }
 }

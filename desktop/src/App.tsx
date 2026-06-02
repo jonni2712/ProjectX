@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Server, Users, FolderOpen, Globe, Activity, Settings, LogOut, WifiOff, Loader2, Download } from 'lucide-react';
+import { Server, Users, FolderOpen, Globe, Activity, Settings, LogOut, WifiOff, Loader2, Download, ShieldAlert } from 'lucide-react';
 import { AuthProvider, useAuth } from './AuthContext';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/Users';
@@ -14,21 +14,32 @@ import SetupWizard from './pages/SetupWizard';
 // of the sidebar, so we pad the sidebar header to the right of them.
 const isMac = typeof window !== 'undefined' && window.electronAPI?.platform === 'darwin';
 
+// adminOnly pages hit endpoints guarded by requireAdmin on the server (user CRUD,
+// audit log, cloudflare/tunnel control, config writes). We hide them from non-admin
+// users so they never see a wall of 403s, and guard the routes too (below) in case
+// someone navigates by URL.
 const navItems = [
   { to: '/', icon: Server, label: 'Dashboard' },
-  { to: '/users', icon: Users, label: 'Users' },
+  { to: '/users', icon: Users, label: 'Users', adminOnly: true },
   { to: '/files', icon: FolderOpen, label: 'Files' },
-  { to: '/tunnel', icon: Globe, label: 'Remote' },
-  { to: '/logs', icon: Activity, label: 'Logs' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/tunnel', icon: Globe, label: 'Remote', adminOnly: true },
+  { to: '/logs', icon: Activity, label: 'Logs', adminOnly: true },
+  { to: '/settings', icon: Settings, label: 'Settings', adminOnly: true },
 ];
 
 function LoginScreen() {
-  const { login, serverOnline } = useAuth();
+  const { login, serverOnline, refresh } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
+  async function retryConnection() {
+    setRetrying(true);
+    await refresh();           // re-probe the server without a full window reload
+    setRetrying(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,10 +62,12 @@ function LoginScreen() {
             Cannot connect to ProjectX server at http://localhost:3000
           </p>
           <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2.5 bg-[#6C9EFF] text-white rounded-lg text-sm font-medium hover:bg-[#5A8BE6] transition-colors"
+            onClick={retryConnection}
+            disabled={retrying}
+            className="px-6 py-2.5 bg-[#6C9EFF] text-white rounded-lg text-sm font-medium hover:bg-[#5A8BE6] transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
           >
-            Retry Connection
+            {retrying && <Loader2 size={16} className="animate-spin" />}
+            {retrying ? 'Connecting…' : 'Retry Connection'}
           </button>
         </div>
       </div>
@@ -130,8 +143,25 @@ function LoadingScreen() {
   );
 }
 
+// Renders admin-only routes for non-admins as a friendly notice instead of a raw
+// 403 from the underlying API calls.
+function AdminGate({ isAdmin, children }: { isAdmin: boolean; children: React.ReactNode }) {
+  if (isAdmin) return <>{children}</>;
+  return (
+    <div className="flex items-center justify-center h-full p-8">
+      <div className="text-center max-w-sm">
+        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+          <ShieldAlert size={28} className="text-amber-400" />
+        </div>
+        <h2 className="text-lg font-semibold text-white mb-1">Administrator access required</h2>
+        <p className="text-sm text-gray-400">This section is only available to admin accounts. Ask an administrator if you need access.</p>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
-  const { isAuthenticated, isLoading, needsSetup, refresh, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, needsSetup, refresh, user, logout, isAdmin } = useAuth();
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -142,6 +172,8 @@ function AppContent() {
   // Fresh install: the server is up but unconfigured — run first-run setup.
   if (needsSetup) return <SetupWizard onComplete={refresh} />;
   if (!isAuthenticated) return <LoginScreen />;
+
+  const visibleNav = navItems.filter(item => isAdmin || !item.adminOnly);
 
   return (
     <div className="flex h-screen bg-[#0F0F1A]">
@@ -159,7 +191,7 @@ function AppContent() {
 
         {/* Nav items */}
         <nav className="flex-1 py-2 px-2">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {visibleNav.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -206,11 +238,11 @@ function AppContent() {
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/users" element={<UsersPage />} />
+          <Route path="/users" element={<AdminGate isAdmin={isAdmin}><UsersPage /></AdminGate>} />
           <Route path="/files" element={<FilesPage />} />
-          <Route path="/tunnel" element={<TunnelPage />} />
-          <Route path="/logs" element={<LogsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/tunnel" element={<AdminGate isAdmin={isAdmin}><TunnelPage /></AdminGate>} />
+          <Route path="/logs" element={<AdminGate isAdmin={isAdmin}><LogsPage /></AdminGate>} />
+          <Route path="/settings" element={<AdminGate isAdmin={isAdmin}><SettingsPage /></AdminGate>} />
           <Route path="/setup" element={<SetupWizard />} />
         </Routes>
       </main>
