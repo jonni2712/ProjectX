@@ -120,10 +120,34 @@ export async function deleteEntry(entryPath: string): Promise<void> {
   await rm(absPath, { recursive: true, force: true });
 }
 
+// fs.rename / fs.cp silently overwrite an existing destination on POSIX, so a
+// rename/move/copy onto an occupied path destroys the victim file with no error
+// and a 200 response. Guard every destination: throw a 409 (which the global
+// error handler passes through with its message) when the target already exists.
+async function assertNoOverwrite(targetAbsPath: string): Promise<void> {
+  try {
+    await access(targetAbsPath);
+  } catch (e: any) {
+    if (e.code === 'ENOENT') return; // free slot — safe to write
+    throw e;
+  }
+  const err: any = new Error('Destination already exists');
+  err.statusCode = 409;
+  throw err;
+}
+
 export async function renameEntry(oldPath: string, newName: string): Promise<void> {
+  // newName is a bare name, not a path — reject separators so a "rename" can't
+  // silently relocate the file into another directory.
+  if (/[/\\]/.test(newName)) {
+    const err: any = new Error('New name cannot contain path separators');
+    err.statusCode = 400;
+    throw err;
+  }
   const absOld = safePath(oldPath);
   const newPath = join(dirname(absOld), newName);
   safePath(relativePath(newPath)); // Validate new path is still in workspace
+  await assertNoOverwrite(newPath);
   await rename(absOld, newPath);
 }
 
@@ -132,13 +156,17 @@ export async function moveEntry(srcPath: string, destDir: string): Promise<void>
   const absDest = safePath(destDir);
   const target = join(absDest, basename(absSrc));
   safePath(relativePath(target)); // Validate
+  await assertNoOverwrite(target);
   await rename(absSrc, target);
 }
 
 export async function copyEntry(srcPath: string, destPath: string): Promise<void> {
   const absSrc = safePath(srcPath);
   const absDest = safePath(destPath);
-  await cp(absSrc, absDest, { recursive: true });
+  await assertNoOverwrite(absDest);
+  // errorOnExist+force:false is belt-and-suspenders against a race between the
+  // check above and the copy.
+  await cp(absSrc, absDest, { recursive: true, errorOnExist: true, force: false });
 }
 
 export async function getFileInfo(filePath: string): Promise<FileEntry> {

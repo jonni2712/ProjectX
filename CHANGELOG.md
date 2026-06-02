@@ -5,6 +5,28 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.14] - 2026-06-02 (server, unreleased) — Data-integrity & audit-trail hardening (P2)
+
+_Bundled into the next desktop release._
+
+### Fixed
+- **Silent overwrite on rename/move/copy** — `renameEntry`, `moveEntry`, and
+  `copyEntry` now refuse to clobber an existing destination (HTTP 409) instead
+  of letting `fs.rename`/`fs.cp` destroy the victim file and return success.
+  `rename` also rejects a `newName` containing path separators.
+- **`gitDiscard` option-injection guard** — now calls `rejectOptionLike(...)`
+  like every other file-taking git helper, so the defence survives any future
+  refactor that drops the protective `--` separator.
+
+### Security / audit
+- **Refresh path is now audited** — successful refresh logs `token_refresh`, and
+  an unknown/expired or inactive-user token logs `refresh_failed`, so replay/
+  theft attempts are visible in the audit trail (the path was previously silent).
+- **SECURITY.md** rewritten to document the actual hardening (token_version
+  revocation, HS256 pinning, post-handshake WS re-validation, per-user session
+  ownership/caps, streamed I/O, symlink-escape protection) and a real private
+  reporting channel (GitHub Security Advisories).
+
 ## [1.1.13] - 2026-06-02 (server) / Desktop 1.1.15 — Claude session isolation & streamed file I/O
 
 ### Security

@@ -130,6 +130,10 @@ export async function gitCheckout(repoPath: string, branch: string): Promise<voi
 }
 
 export async function gitDiscard(repoPath: string, files: string[]): Promise<void> {
+  // Consistency with every other file-taking helper: reject option-like values.
+  // The leading `--` already neutralizes dash-prefixed names here, but keeping
+  // the guard means the defence survives any future refactor that drops the `--`.
+  rejectOptionLike(...(files ?? []));
   const git = getGit(repoPath);
   await git.checkout(['--', ...files]);
 }

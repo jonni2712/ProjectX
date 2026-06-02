@@ -121,6 +121,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
     ).get(refreshToken) as any;
 
     if (!row) {
+      // A presented-but-unknown token is the canonical signal of replay/theft —
+      // at minimum make it visible in the audit trail (the refresh path was
+      // previously silent on both success and failure).
+      audit('anonymous', 'refresh_failed', '', 'Unknown or expired refresh token');
       return reply.status(401).send({ success: false, error: 'Invalid or expired refresh token' });
     }
 
@@ -128,6 +132,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const user = getUserById(row.user_id);
     if (!user || !user.active) {
       db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken);
+      audit(row.user_id, 'refresh_failed', '', 'User inactive');
       return reply.status(401).send({ success: false, error: 'User account is inactive' });
     }
 
@@ -145,6 +150,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       tv: user.token_version,
     });
 
+    audit(user.id, 'token_refresh', user.username);
     return { success: true, data: { token, refreshToken: newRefreshToken } };
   });
 
