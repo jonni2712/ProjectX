@@ -25,18 +25,60 @@ export interface ApiStreamCallbacks {
   onError: (error: string) => void;
 }
 
+// Per-user cap on concurrent API streams, mirroring the CLI fork-bomb guard so
+// a looped 'prompt' can't fan out unbounded in-flight requests.
+const MAX_API_SESSIONS_PER_USER = 3;
+
+export class ApiLimitError extends Error {
+  constructor() {
+    super(`Maximum of ${MAX_API_SESSIONS_PER_USER} concurrent Claude sessions per user reached`);
+    this.name = 'ApiLimitError';
+  }
+}
+
+// sessionId -> owning userId for live API streams.
+const activeApiSessions = new Map<string, string>();
+
+function countApiSessionsForUser(userId: string): number {
+  let n = 0;
+  for (const u of activeApiSessions.values()) {
+    if (u === userId) n++;
+  }
+  return n;
+}
+
+/** Owner of a live API session, or undefined. */
+export function getApiSessionOwner(id: string): string | undefined {
+  return activeApiSessions.get(id);
+}
+
 export async function streamClaudeApi(
   prompt: string,
   cwd: string,
   callbacks: ApiStreamCallbacks,
+  userId: string,
   systemPrompt?: string,
 ): Promise<string> {
+  if (countApiSessionsForUser(userId) >= MAX_API_SESSIONS_PER_USER) {
+    throw new ApiLimitError();
+  }
   const anthropic = getClient();
   const id = uuid();
 
   db.prepare(
     "INSERT INTO claude_sessions (id, mode, cwd) VALUES (?, 'api', ?)"
   ).run(id, cwd);
+  activeApiSessions.set(id, userId);
+
+  // Single teardown path so the session is always released from the per-user
+  // count and marked inactive exactly once, whatever ends the stream.
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    activeApiSessions.delete(id);
+    db.prepare('UPDATE claude_sessions SET active = 0 WHERE id = ?').run(id);
+  };
 
   try {
     const stream = anthropic.messages.stream({
@@ -52,16 +94,16 @@ export async function streamClaudeApi(
 
     stream.on('end', () => {
       callbacks.onDone();
-      db.prepare('UPDATE claude_sessions SET active = 0 WHERE id = ?').run(id);
+      finish();
     });
 
     stream.on('error', (error) => {
       callbacks.onError(error.message);
-      db.prepare('UPDATE claude_sessions SET active = 0 WHERE id = ?').run(id);
+      finish();
     });
   } catch (error: any) {
     callbacks.onError(error.message);
-    db.prepare('UPDATE claude_sessions SET active = 0 WHERE id = ?').run(id);
+    finish();
   }
 
   return id;

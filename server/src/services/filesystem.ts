@@ -4,6 +4,7 @@ import {
 import { createReadStream, createWriteStream } from 'fs';
 import { resolve, join, basename, dirname, extname } from 'path';
 import { pipeline } from 'stream/promises';
+import type { Readable } from 'stream';
 import archiver from 'archiver';
 import unzipper from 'unzipper';
 import { safePath, relativePath } from '../utils/path-guard.js';
@@ -68,9 +69,22 @@ export async function readFileContent(filePath: string): Promise<{ content: stri
   return { content: buffer.toString('utf-8'), encoding: 'utf-8', isBinary: false };
 }
 
-export async function readFileBinary(filePath: string): Promise<Buffer> {
+/**
+ * Open a single file for streaming rather than buffering it fully into memory.
+ * Returns the read stream plus its size (for Content-Length) and resolved path
+ * (for MIME sniffing). safePath validation happens here so callers can't bypass
+ * it. Replaces the old readFileBinary, which readFile()'d the whole file — a few
+ * concurrent serve/download of large files could exhaust the heap.
+ */
+export async function openFileForStreaming(
+  filePath: string,
+): Promise<{ stream: Readable; size: number; absPath: string }> {
   const absPath = safePath(filePath);
-  return readFile(absPath);
+  const stats = await stat(absPath);
+  if (!stats.isFile()) {
+    throw new Error('Not a file');
+  }
+  return { stream: createReadStream(absPath), size: stats.size, absPath };
 }
 
 export async function writeFileContent(filePath: string, content: string): Promise<void> {
@@ -139,17 +153,19 @@ export async function getFileInfo(filePath: string): Promise<FileEntry> {
   };
 }
 
-export async function zipDirectory(dirPath: string): Promise<Buffer> {
+/**
+ * Build a zip of a directory as a streaming archive. archiver honours
+ * backpressure, so piping this straight into the HTTP reply never materializes
+ * the whole archive in memory — the old zipDirectory Buffer.concat'd every chunk
+ * of a potentially multi-GB directory tree before sending a single byte.
+ */
+export function createDirectoryZipStream(dirPath: string): ReturnType<typeof archiver> {
   const absPath = safePath(dirPath);
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const archive = archiver('zip', { zlib: { level: 6 } });
-    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
-    archive.on('end', () => resolve(Buffer.concat(chunks)));
-    archive.on('error', reject);
-    archive.directory(absPath, basename(absPath));
-    archive.finalize();
-  });
+  const archive = archiver('zip', { zlib: { level: 6 } });
+  archive.directory(absPath, basename(absPath));
+  // Kick off production; archiver streams lazily under backpressure once piped.
+  archive.finalize();
+  return archive;
 }
 
 // Hard limits for archive extraction. A zip bomb is a small archive that

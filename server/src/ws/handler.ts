@@ -9,9 +9,9 @@ import {
 } from '../services/terminal.service.js';
 import {
   startClaudeCliSession, addClaudeCliListener, removeClaudeCliListener,
-  stopClaudeCliSession, isClaudeCliAvailable,
+  stopClaudeCliSession, isClaudeCliAvailable, getClaudeSessionOwner, ClaudeLimitError,
 } from '../services/claude-cli.js';
-import { streamClaudeApi, isApiAvailable } from '../services/claude-api.js';
+import { streamClaudeApi, isApiAvailable, getApiSessionOwner, ApiLimitError } from '../services/claude-api.js';
 import { getTokenVersion } from '../db/database.js';
 import type { WsMessage } from '../utils/types.js';
 
@@ -353,37 +353,53 @@ async function handleClaude(
       // Try CLI first, then API fallback
       const useCliMode = mode === 'cli' || (mode !== 'api' && isClaudeCliAvailable());
 
-      if (useCliMode) {
-        const sessionId = startClaudeCliSession(workingDir, prompt);
-        const listener = (event: any) => {
-          send({ channel: 'claude', type: event.type, data: event.data, meta: { sessionId } });
-        };
-        addClaudeCliListener(sessionId, listener);
-        client.claudeListeners.set(sessionId, listener);
-        send({ channel: 'claude', type: 'started', data: { sessionId, mode: 'cli' } });
-      } else if (isApiAvailable()) {
-        const sessionId = await streamClaudeApi(prompt, workingDir, {
-          onStream: (text) => send({ channel: 'claude', type: 'stream', data: text, meta: { sessionId } }),
-          onDone: () => send({ channel: 'claude', type: 'done', meta: { sessionId } }),
-          onError: (err) => send({ channel: 'claude', type: 'error', data: err, meta: { sessionId } }),
-        });
-        send({ channel: 'claude', type: 'started', data: { sessionId, mode: 'api' } });
-      } else {
-        send({ channel: 'claude', type: 'error', data: 'Neither Claude CLI nor API is available' });
+      try {
+        if (useCliMode) {
+          const sessionId = startClaudeCliSession(workingDir, prompt, client.userId);
+          const listener = (event: any) => {
+            send({ channel: 'claude', type: event.type, data: event.data, meta: { sessionId } });
+          };
+          addClaudeCliListener(sessionId, listener);
+          client.claudeListeners.set(sessionId, listener);
+          send({ channel: 'claude', type: 'started', data: { sessionId, mode: 'cli' } });
+        } else if (isApiAvailable()) {
+          const sessionId = await streamClaudeApi(prompt, workingDir, {
+            onStream: (text) => send({ channel: 'claude', type: 'stream', data: text, meta: { sessionId } }),
+            onDone: () => send({ channel: 'claude', type: 'done', meta: { sessionId } }),
+            onError: (err) => send({ channel: 'claude', type: 'error', data: err, meta: { sessionId } }),
+          }, client.userId);
+          send({ channel: 'claude', type: 'started', data: { sessionId, mode: 'api' } });
+        } else {
+          send({ channel: 'claude', type: 'error', data: 'Neither Claude CLI nor API is available' });
+        }
+      } catch (err) {
+        // Per-user cap hit — surface a clean message instead of a generic error.
+        if (err instanceof ClaudeLimitError || err instanceof ApiLimitError) {
+          send({ channel: 'claude', type: 'error', data: err.message });
+        } else {
+          throw err;
+        }
       }
       break;
     }
     case 'stop': {
       const sessionId = data?.sessionId;
-      if (sessionId) {
-        stopClaudeCliSession(sessionId);
-        const listener = client.claudeListeners.get(sessionId);
-        if (listener) {
-          removeClaudeCliListener(sessionId, listener);
-          client.claudeListeners.delete(sessionId);
-        }
-        send({ channel: 'claude', type: 'stopped', meta: { sessionId } });
+      if (!sessionId) break;
+      // Ownership: never let a client stop a session it doesn't own. A known
+      // owner that isn't us = denied; an unknown session (already ended, or
+      // never existed) = a no-op "stopped" so clients can clear local state.
+      const owner = getClaudeSessionOwner(sessionId) ?? getApiSessionOwner(sessionId);
+      if (owner !== undefined && owner !== client.userId) {
+        send({ channel: 'claude', type: 'error', data: 'Access denied: session belongs to another user' });
+        break;
       }
+      stopClaudeCliSession(sessionId);
+      const listener = client.claudeListeners.get(sessionId);
+      if (listener) {
+        removeClaudeCliListener(sessionId, listener);
+        client.claudeListeners.delete(sessionId);
+      }
+      send({ channel: 'claude', type: 'stopped', meta: { sessionId } });
       break;
     }
   }

@@ -5,6 +5,30 @@ All notable changes to ProjectX are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.13] - 2026-06-02 (server) / Desktop 1.1.15 — Claude session isolation & streamed file I/O
+
+### Security
+- **Claude session ownership** — the `claude` WebSocket `stop` handler now
+  verifies the session belongs to the requesting user (mirroring the terminal
+  ownership checks). Previously any authenticated user who learned/guessed a
+  session id could kill another user's in-flight Claude run.
+- **Per-user Claude concurrency cap** — both the CLI (`claude --print`
+  subprocess) and the API streaming paths are now capped at 3 concurrent
+  sessions per user, closing the fork-bomb / resource-exhaustion gap the
+  terminal subsystem already guarded against. Hitting the cap returns a clean
+  error instead of spawning unbounded subprocesses.
+- **Content-Disposition header hardening** — download/zip filenames are now
+  emitted as a sanitized ASCII fallback plus an RFC 5987 `filename*` form, so a
+  filename containing quotes, backslashes, or CR/LF can no longer break or
+  inject response headers.
+
+### Performance / reliability
+- **Streamed file serve/download/zip** — `/files/serve`, `/files/download`, and
+  `/files/zip` now stream from disk (and stream the zip archive with
+  backpressure) instead of buffering the entire file/archive into memory. A few
+  concurrent large-file or directory downloads could previously exhaust the heap
+  and crash the server; `Content-Length` is set for single files.
+
 ## Desktop 1.1.14 / App 1.0.4 - 2026-06-02 — Client session & reconnect resilience
 
 ### Added

@@ -7,6 +7,7 @@ interface ClaudeCliSession {
   id: string;
   process: ChildProcess;
   cwd: string;
+  userId: string; // owner — enforces stop-ownership and the per-user cap
   listeners: Set<(event: ClaudeEvent) => void>;
   active: boolean;
 }
@@ -16,7 +17,32 @@ export interface ClaudeEvent {
   data: string;
 }
 
+// Hard cap so a client (or a stolen token) can't spawn unbounded `claude`
+// subprocesses in a loop and fork-bomb the host — the terminal subsystem has
+// the same guard (MAX_TERMINALS_PER_USER).
+const MAX_CLAUDE_SESSIONS_PER_USER = 3;
+
+export class ClaudeLimitError extends Error {
+  constructor() {
+    super(`Maximum of ${MAX_CLAUDE_SESSIONS_PER_USER} concurrent Claude sessions per user reached`);
+    this.name = 'ClaudeLimitError';
+  }
+}
+
 const activeSessions = new Map<string, ClaudeCliSession>();
+
+function countSessionsForUser(userId: string): number {
+  let n = 0;
+  for (const s of activeSessions.values()) {
+    if (s.userId === userId && s.active) n++;
+  }
+  return n;
+}
+
+/** Owner of a live CLI session, or undefined if no such session is tracked. */
+export function getClaudeSessionOwner(id: string): string | undefined {
+  return activeSessions.get(id)?.userId;
+}
 
 export function isClaudeCliAvailable(): boolean {
   try {
@@ -27,7 +53,11 @@ export function isClaudeCliAvailable(): boolean {
   }
 }
 
-export function startClaudeCliSession(cwd: string, prompt: string): string {
+export function startClaudeCliSession(cwd: string, prompt: string, userId: string): string {
+  // Enforce the per-user cap before spawning (empty userId = anonymous bucket).
+  if (countSessionsForUser(userId) >= MAX_CLAUDE_SESSIONS_PER_USER) {
+    throw new ClaudeLimitError();
+  }
   const absPath = safePath(cwd);
   const id = uuid();
 
@@ -47,6 +77,7 @@ export function startClaudeCliSession(cwd: string, prompt: string): string {
     id,
     process: proc,
     cwd: absPath,
+    userId,
     listeners: new Set(),
     active: true,
   };

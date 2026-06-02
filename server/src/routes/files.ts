@@ -1,11 +1,20 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
+import { extname } from 'path';
 import {
   listDirectory, readFileContent, writeFileContent, createFile, createDirectory,
   deleteEntry, renameEntry, moveEntry, copyEntry, getFileInfo, searchFiles,
-  zipDirectory, unzipToDirectory, readFileBinary,
+  createDirectoryZipStream, unzipToDirectory, openFileForStreaming,
 } from '../services/filesystem.js';
 import { lockService } from '../services/lock.service.js';
 import { audit } from '../db/database.js';
+
+// Build a safe Content-Disposition value. A raw filename containing a quote,
+// backslash, or CR/LF could break the header or inject a second header; we emit
+// a sanitized ASCII fallback plus an RFC 5987 UTF-8 form for the real name.
+function contentDisposition(name: string): string {
+  const asciiFallback = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
 
 export default async function fileRoutes(fastify: FastifyInstance) {
   // All file routes require auth
@@ -38,10 +47,6 @@ export default async function fileRoutes(fastify: FastifyInstance) {
   // GET /files/serve?path=/project/index.html — serve file with correct MIME type for preview
   fastify.get('/files/serve', async (request: FastifyRequest<{ Querystring: { path: string } }>, reply) => {
     const { path } = request.query;
-    const { safePath: sp } = await import('../utils/path-guard.js');
-    const { extname } = await import('path');
-    const absPath = sp(path);
-    const ext = extname(absPath).toLowerCase();
     const mimeTypes: Record<string, string> = {
       '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
       '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -51,12 +56,15 @@ export default async function fileRoutes(fastify: FastifyInstance) {
       '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.mp4': 'video/mp4',
       '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
     };
-    const contentType = mimeTypes[ext] || 'application/octet-stream';
-    const buffer = await readFileBinary(path);
-    reply.header('Content-Type', contentType);
+    // Stream the file instead of buffering it — large media previews no longer
+    // pin the whole file in heap.
+    const { stream, size, absPath } = await openFileForStreaming(path);
+    const ext = extname(absPath).toLowerCase();
+    reply.header('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+    reply.header('Content-Length', size);
     // No wildcard CORS here — workspace file bytes must follow the same origin
     // policy as the rest of the API (handled by the global CORS plugin).
-    return reply.send(buffer);
+    return reply.send(stream);
   });
 
   // GET /files/download?path=/src/app.ts
@@ -64,15 +72,16 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     const { path } = request.query;
     const info = await getFileInfo(path);
     if (info.type === 'directory') {
-      const buffer = await zipDirectory(path);
       reply.header('Content-Type', 'application/zip');
-      reply.header('Content-Disposition', `attachment; filename="${info.name}.zip"`);
-      return reply.send(buffer);
+      reply.header('Content-Disposition', contentDisposition(`${info.name}.zip`));
+      // Streamed archive (chunked) — never materializes the whole zip in memory.
+      return reply.send(createDirectoryZipStream(path));
     }
-    const buffer = await readFileBinary(path);
+    const { stream, size } = await openFileForStreaming(path);
     reply.header('Content-Type', 'application/octet-stream');
-    reply.header('Content-Disposition', `attachment; filename="${info.name}"`);
-    return reply.send(buffer);
+    reply.header('Content-Length', size);
+    reply.header('Content-Disposition', contentDisposition(info.name));
+    return reply.send(stream);
   });
 
   // POST /files/create { path, content?, isDirectory? }
@@ -234,11 +243,11 @@ export default async function fileRoutes(fastify: FastifyInstance) {
     Body: { path: string }
   }>, reply) => {
     const { path } = request.body;
-    const buffer = await zipDirectory(path);
     const info = await getFileInfo(path);
     reply.header('Content-Type', 'application/zip');
-    reply.header('Content-Disposition', `attachment; filename="${info.name}.zip"`);
-    return reply.send(buffer);
+    reply.header('Content-Disposition', contentDisposition(`${info.name}.zip`));
+    // Streamed archive — see /files/download.
+    return reply.send(createDirectoryZipStream(path));
   });
 
   // --- Lock endpoints ---
